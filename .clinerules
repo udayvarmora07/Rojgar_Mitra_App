@@ -1,0 +1,29 @@
+# Project Core
+- **App:** Gujarat Govt Jobs Aggregator.
+- **Audience:** Farmers, rural youth, low technical literacy.
+- **Tech Stack:** React Native (Expo), NativeWind, Supabase (PostgreSQL), Python (BeautifulSoup/Requests).
+
+# UI/UX & Localization Rules
+- **Simplicity:** UIs must be extremely simple, high contrast, and use large typography. No complex gestures.
+- **Language:** Default components to support both English and Gujarati. Assume users may struggle with complex English terms. 
+- **Styling:** Strictly use NativeWind for all styling. Do not use standard React Native `StyleSheet` unless absolutely necessary.
+
+# Coding Standards & Workflow
+- **Expo Router:** Use file-based routing exclusively (`app/` directory).
+- **Supabase:** Always use parameterized queries or the official Supabase JS client methods to prevent injection. Never expose the Service Role Key in the frontend code.
+- **Testing Before Proceeding:** Before marking a task as complete, verify that the code compiles. If creating a UI component, ensure all imports are present.
+
+# AI Integration
+- When writing prompts for the MiniMax m2.7 API (used for practice tests), explicitly instruct the model to output valid, parseable JSON and use simple Gujarati phrasing.
+
+# Custom Skills & Commands
+You have access to custom scripts in the `scripts/` directory. You MUST use these instead of guessing terminal commands:
+
+- **Skill: App Restart (`./scripts/start-clean.sh`)**
+  - **When to use:** If I complain about a UI bug, a NativeWind styling issue, or a "module not found" error, run this skill to clear the bundler cache before trying to fix the code.
+
+- **Skill: Database Sync (`./scripts/sync-db.sh`)**
+  - **When to use:** EVERY TIME you make a change to the `supabase_schema.sql` file. You must run this skill immediately after to ensure the frontend types are updated.
+
+- **Skill: Scraper Test (`./scripts/test-scraper.sh`)**
+  - **When to use:** Whenever you write or modify the Python scraping logic, run this skill to verify the data is being extracted correctly before you attempt to push any data to Supabase.
