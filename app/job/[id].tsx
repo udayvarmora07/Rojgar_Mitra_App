@@ -1,234 +1,160 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { getJobById, getJobDetails, getDocumentsRequired, Job, JobDetail, DocumentRequired } from '../../lib/supabase';
+import { useTranslation } from 'react-i18next';
+import { supabase } from '../../lib/supabase';
+import type { Job } from '../../lib/database.types';
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [job, setJob] = useState<Job | null>(null);
-  const [jobDetails, setJobDetails] = useState<JobDetail[]>([]);
-  const [documents, setDocuments] = useState<DocumentRequired[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { t } = useTranslation();
+  const [job, setJob] = React.useState<Job | null>(null);
+  const [loading, setLoading] = React.useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!id) return;
-
-    const fetchData = async () => {
-      try {
-        const [jobData, detailsData, docsData] = await Promise.all([
-          getJobById(id),
-          getJobDetails(id),
-          getDocumentsRequired(id)
-        ]);
-        setJob(jobData);
-        setJobDetails(detailsData);
-        setDocuments(docsData);
-      } catch (error) {
-        console.error('Error fetching job data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchJob();
   }, [id]);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+  const fetchJob = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      setJob(data);
+    } catch (error) {
+      console.error('Error fetching job:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const openSourceLink = () => {
-    if (job?.source_link) {
-      Linking.openURL(job.source_link);
+  const handleApply = async () => {
+    if (job?.apply_link) {
+      await Linking.openURL(job.apply_link);
     }
+  };
+
+  const handleShare = async () => {
+    // Native share would be implemented here
+    console.log('Share job:', job?.title);
   };
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#1E3A8A" />
-        <Text className="text-lg text-gray-600 mt-4">Loading job details...</Text>
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-lg text-gray-600">{t('common.loading')}</Text>
       </View>
     );
   }
 
   if (!job) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
-        <Ionicons name="alert-circle-outline" size={64} color="#DC2626" />
-        <Text className="text-xl text-gray-700 mt-4">Job not found</Text>
-        <TouchableOpacity className="mt-6 bg-blue-900 px-6 py-3 rounded-xl" onPress={() => router.back()}>
-          <Text className="text-white font-semibold">Go Back</Text>
-        </TouchableOpacity>
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-lg text-gray-600">{t('jobs.noJobsFound')}</Text>
       </View>
     );
   }
 
-  const applicationDocs = documents.filter(d => d.phase === 'Application');
-  const examCenterDocs = documents.filter(d => d.phase === 'Exam Center');
-
   return (
-    <View className="flex-1 bg-gray-50">
+    <ScrollView className="flex-1 bg-white">
       {/* Header */}
-      <View className="bg-blue-900 px-6 py-6">
-        <TouchableOpacity className="flex-row items-center mb-4" onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-          <Text className="text-white text-lg ml-2">Back</Text>
-        </TouchableOpacity>
-        <Text className="text-2xl font-bold text-white">{job.title}</Text>
-        <Text className="text-lg text-blue-200 mt-1">{job.department}</Text>
+      <View className="bg-blue-800 p-6">
+        <Text className="text-2xl font-bold text-white mb-2">{job.title}</Text>
+        <Text className="text-lg text-blue-100">{job.organization}</Text>
       </View>
 
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 24 }}
-      >
-        {/* Job Info Section */}
-        <View className="bg-white rounded-xl p-5 mb-4 shadow-sm">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Job Information</Text>
-          
-          <View className="flex-row items-center mb-3">
-            <Ionicons name="business-outline" size={22} color="#1E3A8A" />
-            <View className="ml-3">
-              <Text className="text-sm text-gray-500">Department</Text>
-              <Text className="text-base text-gray-900 font-medium">{job.department}</Text>
+      {/* Quick Info */}
+      <View className="p-4 border-b border-gray-200">
+        <View className="flex-row flex-wrap gap-4">
+          {job.location && (
+            <View className="bg-gray-100 px-4 py-2 rounded-lg">
+              <Text className="text-sm text-gray-600">{t('jobs.location')}</Text>
+              <Text className="font-medium">{job.location}</Text>
             </View>
-          </View>
-
-          <View className="flex-row items-center mb-3">
-            <Ionicons name="calendar-outline" size={22} color="#1E3A8A" />
-            <View className="ml-3">
-              <Text className="text-sm text-gray-500">Post Date</Text>
-              <Text className="text-base text-gray-900 font-medium">{formatDate(job.post_date)}</Text>
+          )}
+          {job.salary_min && job.salary_max && (
+            <View className="bg-gray-100 px-4 py-2 rounded-lg">
+              <Text className="text-sm text-gray-600">{t('jobs.salary')}</Text>
+              <Text className="font-medium">
+                {job.salary_min} - {job.salary_max}
+              </Text>
             </View>
-          </View>
-
-          <View className="flex-row items-center mb-3">
-            <Ionicons name="time-outline" size={22} color="#DC2626" />
-            <View className="ml-3">
-              <Text className="text-sm text-gray-500">Last Date to Apply</Text>
-              <Text className="text-base text-red-600 font-bold">{formatDate(job.deadline)}</Text>
-            </View>
-          </View>
-
-          {job.salary && (
-            <View className="flex-row items-center">
-              <Ionicons name="cash-outline" size={22} color="#1E3A8A" />
-              <View className="ml-3">
-                <Text className="text-sm text-gray-500">Salary</Text>
-                <Text className="text-base text-gray-900 font-medium">{job.salary}</Text>
-              </View>
+          )}
+          {job.deadline && (
+            <View className="bg-gray-100 px-4 py-2 rounded-lg">
+              <Text className="text-sm text-gray-600">{t('jobs.deadline')}</Text>
+              <Text className="font-medium">{job.deadline}</Text>
             </View>
           )}
         </View>
+      </View>
 
-        {/* Eligibility Section */}
-        <View className="bg-white rounded-xl p-5 mb-4 shadow-sm">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Eligibility</Text>
-
-          {jobDetails.length === 0 ? (
-            <Text className="text-base text-gray-500">No eligibility information available</Text>
-          ) : (
-            jobDetails.map((detail, index) => (
-              <View key={detail.id || index}>
-                <View className="flex-row items-start mb-3">
-                  <Ionicons name="person-outline" size={22} color="#1E3A8A" />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm text-gray-500">Age Limit</Text>
-                    <Text className="text-base text-gray-900 font-medium">{detail.age_limit}</Text>
-                  </View>
-                </View>
-
-                <View className="flex-row items-start mb-3">
-                  <Ionicons name="school-outline" size={22} color="#1E3A8A" />
-                  <View className="ml-3 flex-1">
-                    <Text className="text-sm text-gray-500">Required Qualification</Text>
-                    <Text className="text-base text-gray-900 font-medium">{detail.required_qualifications}</Text>
-                  </View>
-                </View>
-
-                {detail.application_fees && (
-                  <View className="flex-row items-start">
-                    <Ionicons name="card-outline" size={22} color="#1E3A8A" />
-                    <View className="ml-3 flex-1">
-                      <Text className="text-sm text-gray-500">Application Fees</Text>
-                      <Text className="text-base text-gray-900 font-medium">{detail.application_fees}</Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            ))
-          )}
+      {/* Description */}
+      {job.description && (
+        <View className="p-4 border-b border-gray-200">
+          <Text className="text-xl font-semibold mb-2">Description</Text>
+          <Text className="text-gray-700 leading-6">{job.description}</Text>
         </View>
+      )}
 
-        {/* Required Documents Section */}
-        <View className="bg-white rounded-xl p-5 mb-4 shadow-sm">
-          <Text className="text-xl font-bold text-gray-900 mb-4">Required Documents</Text>
-
-          {documents.length === 0 ? (
-            <Text className="text-base text-gray-500">No document list available</Text>
-          ) : (
-            <>
-              {applicationDocs.length > 0 && (
-                <View className="mb-4">
-                  <Text className="text-lg font-semibold text-blue-900 mb-2">Application Phase</Text>
-                  {applicationDocs.map((doc, index) => (
-                    <View key={doc.id || index} className="flex-row items-center mb-2">
-                      <Ionicons name="checkbox-outline" size={20} color="#059669" />
-                      <Text className="text-base text-gray-700 ml-2">{doc.document_name}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {examCenterDocs.length > 0 && (
-                <View>
-                  <Text className="text-lg font-semibold text-blue-900 mb-2">Exam Center Phase</Text>
-                  {examCenterDocs.map((doc, index) => (
-                    <View key={doc.id || index} className="flex-row items-center mb-2">
-                      <Ionicons name="checkbox-outline" size={20} color="#059669" />
-                      <Text className="text-base text-gray-700 ml-2">{doc.document_name}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </>
-          )}
+      {/* Requirements */}
+      {job.requirements && job.requirements.length > 0 && (
+        <View className="p-4 border-b border-gray-200">
+          <Text className="text-xl font-semibold mb-2">{t('jobs.requirements')}</Text>
+          {job.requirements.map((req, index) => (
+            <View key={index} className="flex-row items-start mb-2">
+              <Text className="text-green-600 mr-2">•</Text>
+              <Text className="text-gray-700 flex-1">{req}</Text>
+            </View>
+          ))}
         </View>
+      )}
 
-        {/* Action Buttons */}
-        <View className="space-y-3">
-          {job.source_link && (
-            <TouchableOpacity
-              className="bg-green-600 rounded-xl p-4 items-center"
-              onPress={openSourceLink}
-            >
-              <Text className="text-lg font-semibold text-white">Apply Now - Official Website</Text>
-            </TouchableOpacity>
-          )}
+      {/* Source */}
+      {job.source && (
+        <View className="p-4 border-b border-gray-200">
+          <Text className="text-xl font-semibold mb-2">{t('jobs.source')}</Text>
+          <View className="flex-row items-center">
+            <Text className="text-gray-600">{job.source}</Text>
+            {job.source_url && (
+              <TouchableOpacity
+                onPress={() => Linking.openURL(job.source_url!)}
+                className="ml-2"
+              >
+                <Text className="text-blue-600 underline">View Original</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
+      {/* Action Buttons */}
+      <View className="p-4 gap-3">
+        {job.apply_link && (
           <TouchableOpacity
-            className="bg-blue-900 rounded-xl p-4 items-center"
-            onPress={() => router.push('/practice')}
+            onPress={handleApply}
+            className="bg-green-600 p-4 rounded-xl items-center"
           >
-            <Text className="text-lg font-semibold text-white">Start Practice Test</Text>
+            <Text className="text-white text-lg font-semibold">
+              {t('jobs.applyNow')}
+            </Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            className="bg-orange-600 rounded-xl p-4 items-center"
-            onPress={() => router.push('/documents')}
-          >
-            <Text className="text-lg font-semibold text-white">View Document Checklist</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </View>
+        )}
+        <TouchableOpacity
+          onPress={handleShare}
+          className="bg-gray-200 p-4 rounded-xl items-center"
+        >
+          <Text className="text-gray-800 text-lg font-semibold">
+            {t('jobs.share')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
