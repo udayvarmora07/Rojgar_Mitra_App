@@ -1,458 +1,254 @@
-# Rojgar Mitra - Product Requirements Document (PRD)
+# Rojgar Mitra - Product Requirements Document
 
 ## 1. Project Overview
 
-**Project Name:** Rojgar Mitra (રોજગાર મિત્ર)  
-**Project Type:** Mobile Application (Android)
+### Project Name
+Rojgar Mitra (Employment Friend)
 
-**Core Functionality:** A Gujarat Government Jobs Aggregator designed to help farmers and rural youth discover government employment opportunities, understand eligibility criteria, access free AI-generated practice tests, and find application/exam center information.
+### Core Functionality
+Mobile application that aggregates and displays Gujarat government job postings from multiple official sources, featuring AI-powered practice tests and multi-language support (English, Gujarati, Hindi) for rural users with low technical literacy.
 
-**Target Audience:**
-- Farmers and rural youth in Gujarat
-- Users with low technical literacy
-- Users who may struggle with complex English terms
+### Target Users
+- Rural Gujarat youth seeking government employment
+- Farmers looking for supplementary income opportunities
+- Users with low technical literacy - needs simple, high-contrast UI
 
----
+## 2. UI/UX Specification
 
-## 2. Technology Stack
+### Screen Structure
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Frontend | React Native (Expo) | Mobile app development |
-| Styling | NativeWind (Tailwind CSS) | UI styling |
-| Backend/Database | Supabase (PostgreSQL) | Data storage and authentication |
-| Web Scraping | Python (BeautifulSoup/Requests) | Job data aggregation |
-| AI Integration | MiniMax m2.7 API | Practice test generation |
+#### Tab Navigation (Bottom tabs - 5 tabs)
+1. **Home** - Dashboard with latest jobs and quick links
+2. **Jobs** - Full job listing with search/filter
+3. **Practice** - AI-powered practice tests
+4. **Resources** - Study materials and links
+5. **Settings** - Language, notifications, about
 
----
-
-## 3. UI/UX & Localization Rules
-
-### 3.1 Design Principles
-- **Simplicity:** Extremely simple interfaces with minimal complexity
-- **High Contrast:** Dark text on light backgrounds, large touch targets
-- **Large Typography:** Minimum 18sp font size for body text
-- **No Complex Gestures:** Simple taps only, no swipes or long-presses
-
-### 3.2 Localization
-- **Default Language:** Support both English and Gujarati
-- **Language Switcher:** Prominent toggle in header for English ↔ Gujarati
-- **Simple Terminology:** Avoid complex English terms, use plain Gujarati phrases
-
----
-
-## 4. Core User Flows
-
-### 4.1 Job Browsing Flow
-
+#### Screen Hierarchy
 ```
-[Home Screen]
-    │
-    ├── View Job Categories (by department, education level, location)
-    │
-    ├── Browse Job List
-    │   - Job title, organization, last date to apply
-    │   - Filter by: Category, District, Education, Salary Range
-    │
-    └── Select Job → View Job Details
-        - Full description, eligibility, important dates
-        - Direct link to official application (if available)
+TabNavigator
+├── HomeStack
+│   └── HomeScreen
+│       └── JobDetailScreen (/job/:id)
+├── JobsStack
+│   └── JobsListScreen
+│       └── JobDetailScreen (/job/:id)
+├── PracticeStack
+│   └── PracticeHomeScreen
+│       ├── TestTypeSelectScreen
+│       └── TestTakingScreen
+├── ResourcesStack
+│   └── ResourcesListScreen
+│       └── ResourceDetailScreen (/resources/:id)
+└── SettingsStack
+    └── SettingsScreen
 ```
 
-### 4.2 Eligibility Checking Flow
+### Visual Design
 
-```
-[Job Details Screen]
-    │
-    ├── View eligibility requirements:
-    │   - Education qualification
-    │   - Age limit
-    │   - Category restrictions
-    │   - Experience requirements
-    │
-    └── Self-Check Checklist:
-        - Interactive checklist to help users determine if they qualify
-        - Clear YES/NO indicators
-        - Simple explanations in Gujarati
-```
+#### Color Palette
+- **Primary:** #1E40AF (Deep Blue - trust, government)
+- **Secondary:** #059669 (Green - growth, opportunity)
+- **Accent:** #F59E0B (Amber - attention, highlights)
+- **Background:** #FFFFFF (White)
+- **Surface:** #F3F4F6 (Light Gray)
+- **Text Primary:** #111827 (Near Black)
+- **Text Secondary:** #6B7280 (Gray)
+- **Error:** #DC2626 (Red)
+- **Success:** #16A34A (Green)
 
-### 4.3 Language Switching Flow
+#### Typography
+- **Font Family:** System default (San Francisco on iOS, Roboto on Android)
+- **Heading 1:** 32px, Bold (Screen titles)
+- **Heading 2:** 24px, SemiBold (Section headers)
+- **Heading 3:** 20px, Medium (Card titles)
+- **Body Large:** 18px, Regular (Primary content)
+- **Body:** 16px, Regular (Secondary content)
+- **Caption:** 14px, Regular (Metadata, dates)
 
-```
-[Any Screen]
-    │
-    └── Tap Language Toggle (Header)
-        - Instantly switches all UI text
-        - Persists preference locally
-        - Jobs and content remain the same
-```
+#### Spacing System (8pt grid)
+- **xs:** 4px
+- **sm:** 8px
+- **md:** 16px
+- **lg:** 24px
+- **xl:** 32px
+- **xxl:** 48px
 
----
+#### Component States
+- **Default:** Normal appearance
+- **Pressed:** Opacity 0.8 or background darken
+- **Disabled:** Opacity 0.5, non-interactive
+- **Loading:** Skeleton or spinner
 
-## 5. Feature Specifications
+### Features & Interactions
 
-### 5.1 Home Screen
-- Welcome message in user's selected language
-- Quick access to latest jobs (last 10 posted)
-- Category shortcuts (Education Jobs, Police Jobs, Bank Jobs, etc.)
-- Language toggle prominently displayed
+#### Home Screen
+- Welcome message with user's selected language
+- "Latest Jobs" horizontal scroll (max 10 jobs)
+- "View All" button to Jobs tab
+- Quick links grid (4 items): Latest Jobs, Practice Tests, Resources, Settings
+- Recent resources list (max 5)
 
-### 5.2 Job Listing Screen
-- Scrollable list of jobs with:
-  - Job title (bold, large text)
-  - Organization name
-  - District/Location
-  - Last date to apply (highlighted in red if soon)
-  - Qualification required
-- Filter options: Category, District, Education Level
-- Pull-to-refresh functionality
-- "No results" state with helpful message
+#### Jobs List Screen
+- Search bar (filters by title, organization)
+- Filter chips: All, Government, Private, Freshers
+- Job cards showing: Title, Organization, Location, Deadline, Source badge
+- Pull-to-refresh
+- Pagination (20 jobs per page)
+- Empty state: "No jobs found" message
 
-### 5.3 Job Details Screen
-- Full job information:
-  - Title, Organization, Location
-  - Complete eligibility criteria
-  - Important dates (start date, end date, exam date)
-  - Application fee
-  - Selection process
-- Action buttons:
-  - "Check My Eligibility" (links to eligibility checklist)
-  - "Find Exam Center" (links to exam center finder)
-  - "Start Practice Test" (links to AI-generated tests)
-  - "Official Website" (external link)
+#### Job Detail Screen
+- Full job information layout
+- Sections: Header, Details, Requirements, How to Apply
+- "Apply Now" button (opens external link)
+- Share button (native share sheet)
+- Language toggle
 
-### 5.4 Eligibility Checker Screen
-- Interactive checklist with YES/NO toggles:
-  - ✅ Do you have required qualification?
-  - ✅ Are you within age limit?
-  - ✅ Is your category eligible?
-  - ✅ Do you have required documents?
-- Final result: "You may be eligible" / "You may not be eligible"
-- Clear next steps for each result
+#### Practice Tests Screen
+- Test type selection (General Knowledge, Math, Reasoning, English, Gujarati/Hindi)
+- Generate test button (calls AI endpoint)
+- List of recent tests with scores
+- Test taking interface:
+  - Question display (one at a time)
+  - 4 options as buttons
+  - Submit/Next buttons
+  - Progress indicator
+- Results screen with score and explanations
 
-### 5.5 Document Checklist Screen
+#### Settings Screen
+- Language selector (English, Gujarati, Hindi)
+- Notification toggle
+- About section (version, links)
+- Clear cache button
 
-**Application Documents:**
-- [ ] Aadhaar Card
-- [ ] Education Certificates (10th, 12th, Graduate - as required)
-- [ ] Category Certificate (if applicable: SC/ST/OBC)
-- [ ] Domicile Certificate (Gujarat)
-- [ ] Passport Photo
-- [ ] Signature
-- [ ] Mobile Number (linked to Aadhaar)
-- [ ] Email ID
-- [ ] Bank Account Details
+### Data Handling
 
-**Exam Center Documents:**
-- [ ] Admit Card (Hall Ticket)
-- [ ] Aadhaar Card
-- [ ] Passport Photo (same as application)
-- [ ] Ballpoint Pen (Blue/Black)
-- [ ] Water Bottle (transparent)
+#### Local Storage (AsyncStorage)
+- User language preference
+- Cached jobs data (24-hour TTL)
+- Test results history
 
-**Features:**
-- Downloadable/Printable checklist option
-- Mark items as "Ready" / "Not Ready"
-- Reminder feature for pending documents
+#### API Integration (Supabase)
+- Jobs table (read)
+- Resources table (read)
+- Practice tests (read/write for user progress)
+- AI generated content (write)
 
-### 5.6 Practice Tests Screen (AI Integration)
+#### State Management
+- React Context for global state (language, user)
+- Local state for component-specific data
 
-**Test Generation:**
-- Uses MiniMax m2.7 API for AI-generated questions
-- Questions in simple Gujarati phrasing
-- JSON output format for parsing
+### Error Handling
+- Network error: Show retry button with message
+- Empty data: Show appropriate empty state
+- Loading: Show skeleton loaders
+- Form validation: Inline error messages
 
-**Test Categories:**
-- General Knowledge (સામાન્ય જ્ઞાન)
-- Mathematics (ગણિત)
-- Gujarati Language (ગુજરાતી ભાષા)
-- English Basics (અંગ્રેજી પાયાનું)
-- Current Affairs (વર્તમાન બાબતો)
+## 3. Technical Specification
 
-**Test Features:**
-- Multiple choice questions (4 options)
-- Timer option (optional)
-- Immediate results with explanations
-- Store test history locally
-- "Generate New Test" button
-
----
-
-## 6. MiniMax m2.7 API Integration Plan
-
-### 6.1 API Overview
-- **Endpoint:** MiniMax m2.7 API (to be configured)
-- **Purpose:** Generate practice test questions on-demand
-- **Output Format:** Valid, parseable JSON
-
-### 6.2 Prompt Template
-
+### Required Packages
 ```json
 {
-  "prompt": "Generate 10 multiple choice questions for [TOPIC] in simple Gujarati. Each question should have 4 options (A, B, C, D). Output ONLY valid JSON in this format:\n{\n  \"questions\": [\n    {\n      \"question\": \"question text\",\n      \"options\": {\n        \"A\": \"option A\",\n        \"B\": \"option B\",\n        \"C\": \"option C\",\n        \"D\": \"option D\"\n      },\n      \"correct\": \"A\",\n      \"explanation\": \"brief explanation in Gujarati\"\n    }\n  ]\n}\nNo additional text. Only JSON.",
-  "temperature": 0.7,
-  "max_tokens": 2000
+  "dependencies": {
+    "expo": "~51.0.0",
+    "expo-router": "~4.0.0",
+    "nativewind": "^4.0.36",
+    "@supabase/supabase-js": "^2.39.0",
+    "i18next": "^23.10.0",
+    "react-i18next": "^14.1.0",
+    "@react-native-async-storage/async-storage": "1.23.1"
+  }
 }
 ```
 
-### 6.3 Integration Architecture
-
+### Project Structure
 ```
-[Frontend] → [Supabase Edge Function] → [MiniMax API]
-                │
-                └── Validate & Transform response
-                └── Store cached questions (optional)
-```
+app/
+├── _layout.tsx          # Root layout with providers
+├── index.tsx            # Home screen
+├── job/
+│   └── [id].tsx         # Job detail screen
+├── jobs/
+│   └── index.tsx        # Jobs list screen
+├── practice/
+│   └── index.tsx        # Practice tests screen
+├── resources/
+│   └── [id].tsx         # Resource detail screen
+└── settings/
+    └── index.tsx        # Settings screen
 
-### 6.4 Fallback Strategy
-- Pre-loaded question bank for offline access
-- Cache last fetched questions locally
-- Graceful degradation if API unavailable
+lib/
+├── supabase.ts          # Supabase client
+├── i18n.ts              # i18n configuration
+└── database.types.ts    # TypeScript types
 
----
-
-## 7. Database Schema Overview
-
-### 7.1 Tables (to be defined in supabase_schema.sql)
-
-| Table | Purpose |
-|-------|---------|
-| jobs | Job postings scraped from various sources |
-| categories | Job categories/departments |
-| districts | Gujarat districts for location filtering |
-| user_preferences | Language preference, saved jobs |
-| test_history | Practice test scores and history |
-| cached_questions | AI-generated questions cache |
-
----
-
-## 8. File & Directory Structure
-
-### 8.1 Expo Router File-Based Routing Structure
-
-```
-Rojgar_Mitra_App/
-├── app/
-│   ├── _layout.tsx              # Root layout with providers
-│   ├── index.tsx                # Home screen
-│   ├── jobs/
-│   │   ├── _layout.tsx          # Jobs tab layout
-│   │   ├── index.tsx            # Job listing screen
-│   │   └── [id].tsx             # Job details screen
-│   ├── eligibility/
-│   │   ├── _layout.tsx          # Eligibility tab layout
-│   │   ├── index.tsx            # Eligibility checker home
-│   │   └── [jobId].tsx          # Eligibility checklist for specific job
-│   ├── practice/
-│   │   ├── _layout.tsx          # Practice tests tab layout
-│   │   ├── index.tsx            # Practice test categories
-│   │   └── test/
-│   │       └── [category].tsx   # Test taking screen
-│   ├── documents/
-│   │   ├── _layout.tsx          # Documents tab layout
-│   │   ├── index.tsx            # Document checklist home
-│   │   ├── application.tsx      # Application documents checklist
-│   │   └── exam.tsx             # Exam center documents checklist
-│   └── settings/
-│       └── index.tsx            # Settings (language, etc.)
-├── components/
-│   ├── ui/                      # Reusable UI components
-│   │   ├── Button.tsx
-│   │   ├── Card.tsx
-│   │   ├── Header.tsx
-│   │   ├── LanguageToggle.tsx
-│   │   └── Checkbox.tsx
-│   ├── jobs/
-│   │   ├── JobCard.tsx
-│   │   ├── JobList.tsx
-│   │   └── FilterModal.tsx
-│   └── practice/
-│       ├── QuestionCard.tsx
-│       ├── TestResult.tsx
-│       └── Timer.tsx
-├── context/
-│   ├── LanguageContext.tsx      # Language state management
-│   └── AuthContext.tsx           # Supabase auth context
-├── hooks/
-│   ├── useJobs.ts               # Job fetching hook
-│   ├── useLanguage.ts           # Language switching hook
-│   └── usePracticeTest.ts       # AI test generation hook
-├── lib/
-│   ├── supabase.ts              # Supabase client setup
-│   ├── minimax.ts               # MiniMax API client
-│   └── translations.ts          # English/Gujarati translations
-├── types/
-│   ├── jobs.ts                  # Job type definitions
-│   ├── questions.ts             # Practice test types
-│   └── documents.ts             # Document checklist types
-├── constants/
-│   ├── categories.ts            # Job categories data
-│   └── districts.ts             # Gujarat districts data
-├── scripts/                      # Custom scripts (dev only)
-│   ├── start-clean.sh
-│   ├── sync-db.sh
-│   └── test-scraper.sh
-├── supabase/
-│   ├── functions/               # Supabase Edge Functions
-│   │   └── generate-test/       # AI test generation function
-│   │       └── index.ts
-│   └── supabase_schema.sql      # Database schema
-├── scraping/
-│   ├── scraper.py               # Main scraping script
-│   ├── sources/                 # Source-specific scrapers
-│   └── utils.py                 # Helper functions
-├── assets/
-│   ├── images/                  # App images
-│   └── fonts/                   # Custom fonts if needed
-├── package.json
-├── app.json                     # Expo config
-├── tailwind.config.js           # NativeWind config
-├── tsconfig.json
-└── PRD.md                       # This document
+scraper/
+├── scraper.py           # Python scraper
+└── requirements.txt     # Python dependencies
 ```
 
-### 8.2 File Naming Conventions
-- **Screens:** `camelCase.tsx` (e.g., `jobDetails.tsx`)
-- **Components:** `PascalCase.tsx` (e.g., `JobCard.tsx`)
-- **Hooks:** `camelCase.ts` (e.g., `useJobs.ts`)
-- **Utilities:** `camelCase.ts` (e.g., `supabase.ts`)
+### Database Schema (Supabase)
 
----
+#### jobs
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| title | text | Job title |
+| organization | text | Hiring organization |
+| location | text | Job location |
+| salary_min | integer | Minimum salary |
+| salary_max | integer | Maximum salary |
+| job_type | text | full-time/part-time/contract |
+| description | text | Full job description |
+| requirements | text[] | Array of requirements |
+| deadline | date | Application deadline |
+| apply_link | text | External apply URL |
+| source | text | Source website name |
+| source_url | text | Source URL |
+| language | enum | 'en', 'gu', 'hi' |
+| created_at | timestamp | Record creation time |
+| updated_at | timestamp | Last update time |
 
-## 9. Screen Specifications
+#### resources
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| title | text | Resource title |
+| description | text | Resource description |
+| category | text | Category name |
+| url | text | Resource URL |
+| language | enum | 'en', 'gu', 'hi' |
+| created_at | timestamp | Record creation time |
 
-### 9.1 Tab Navigation Structure
+#### practice_tests
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| title | text | Test title |
+| description | text | Test description |
+| questions | jsonb | Array of question objects |
+| language | enum | 'en', 'gu', 'hi' |
+| created_at | timestamp | Record creation time |
 
-```
-┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐
-│     Home        │     Jobs        │    Practice     │    Settings     │
-│     (घर)        │    (નોકરીઓ)     │    (અભ્યાસ)     │   (સેટિંગ્સ)    │
-└─────────────────┴─────────────────┴─────────────────┴─────────────────┘
-```
+#### user_progress
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| user_id | text | User identifier |
+| test_id | uuid | Reference to practice_tests |
+| score | integer | User's score |
+| answers | jsonb | User's answers |
+| completed_at | timestamp | Completion time |
+| created_at | timestamp | Record creation time |
 
-### 9.2 Screen Hierarchy
+### API Endpoints (Supabase RPC)
 
-| Tab | Screen | Purpose |
-|-----|--------|---------|
-| Home | HomeScreen | Welcome, quick links, latest jobs |
-| Jobs | JobListScreen | Browse all jobs |
-| Jobs | JobDetailsScreen | Full job information |
-| Practice | PracticeHomeScreen | Test categories |
-| Practice | TestTakingScreen | Take AI-generated test |
-| Practice | TestResultScreen | View test results |
-| Settings | SettingsScreen | Language toggle, preferences |
-| - | EligibilityCheckerScreen | Check job eligibility |
-| - | DocumentChecklistScreen | Application/Exam documents |
+#### generate_practice_test
+- Input: test_type (text), language (text), count (integer)
+- Output: practice_test object
+- Logic: Call AI to generate questions, store in database
 
----
-
-## 10. Data Flow Specifications
-
-### 10.1 Job Data Flow
-
-```
-[Python Scraper] → [Supabase Database] → [Frontend API Calls] → [User]
-     (Server-side)    (Cloud)            (Real-time queries)
-```
-
-### 10.2 Practice Test Flow
-
-```
-[User selects topic] → [Edge Function] → [MiniMax API] → [Edge Function] → [User]
-                       (Validate)        (AI Generate)   (Transform)      (Display)
-```
-
-### 10.3 Offline Support
-- Jobs data: Cached with SWR, refresh on app open
-- Practice tests: Pre-loaded bank + last fetched questions
-- Language preference: Local storage persistence
-
----
-
-## 11. Localization Implementation
-
-### 11.1 Translation Structure
-
-```typescript
-// lib/translations.ts
-export const translations = {
-  en: {
-    home: "Home",
-    jobs: "Jobs",
-    practice: "Practice",
-    settings: "Settings",
-    lastDate: "Last Date to Apply",
-    eligibility: "Eligibility",
-    // ... more translations
-  },
-  gu: {
-    home: "ઘર",
-    jobs: "નોકરીઓ",
-    practice: "અભ્યાસ",
-    settings: "સેટિંગ્સ",
-    lastDate: "અરજીની છેલ્લી તારીખ",
-    eligibility: "પાત્રતા",
-    // ... more translations
-  }
-};
-```
-
-### 11.2 Language Switching
-- Use React Context for global language state
-- All user-facing strings come from translation system
-- Job content remains in original language (scraped)
-
----
-
-## 12. Testing & Quality Requirements
-
-### 12.1 Before Marking Task Complete
-- [ ] Code compiles without errors
-- [ ] All imports are present
-- [ ] NativeWind styles applied correctly
-- [ ] Language toggle functional
-- [ ] No TypeScript errors
-
-### 12.2 Custom Scripts Usage
-- **App Restart:** `./scripts/start-clean.sh` - Use when UI bugs, styling issues, or module errors
-- **Database Sync:** `./scripts/sync-db.sh` - Run after any `supabase_schema.sql` changes
-- **Scraper Test:** `./scripts/test-scraper.sh` - Run after modifying Python scraping logic
-
----
-
-## 13. Security Requirements
-
-- **Supabase:** Use parameterized queries only, never expose Service Role Key in frontend
-- **API Keys:** Store in environment variables, access via Edge Functions
-- **User Data:** Minimal collection, local-first approach for preferences
-
----
-
-## 14. Accessibility Requirements
-
-- Minimum touch target size: 48x48dp
-- Color contrast ratio: 4.5:1 minimum
-- Font scaling: Support system font size preferences
-- Screen reader support: Proper labels and accessibility hints
-
----
-
-## 15. Future Considerations (Out of Scope for MVP)
-
-- User authentication and saved jobs
-- Push notifications for new jobs
-- Offline job browsing
-- Job application tracking
-- Community discussion forums
-
----
-
-## 16. Document Version
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2026-04-22 | Initial PRD created |
-
----
-
-*This PRD serves as the guiding document for the Rojgar Mitra application development.*
+### Asset Requirements
+- App icon (1024x1024 for app store)
+- No custom fonts (use system fonts)
+- No external images (use text/shapes/icons only for simplicity)
