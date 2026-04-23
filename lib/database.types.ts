@@ -102,7 +102,6 @@ export interface Database {
   };
 }
 
-// For React Native, we use a simpler type approach
 export type Job = {
   id: string;
   title: string;

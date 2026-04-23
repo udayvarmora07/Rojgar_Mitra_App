@@ -12,7 +12,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: {
       getItem: (key: string) => {
-        // AsyncStorage is used in the app; this is a fallback for SSR
         return Promise.resolve(null);
       },
       setItem: (key: string, value: string) => {

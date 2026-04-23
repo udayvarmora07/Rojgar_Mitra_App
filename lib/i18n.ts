@@ -197,7 +197,7 @@ const hi = {
     searchPlaceholder: 'नौकरियाँ खोजें...',
     noJobsFound: 'कोई नौकरी नहीं मिली',
     applyNow: 'अभी आवेदन करें',
-    share: 'साझा करें',
+    share: 'शेयर करें',
     salary: 'वेतन',
     location: 'स्थान',
     deadline: 'अंतिम तिथि',
