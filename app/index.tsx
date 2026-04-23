@@ -1,147 +1,133 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { getJobs, Job } from '../lib/supabase';
+import { useTranslation } from 'react-i18next';
+import { supabase } from '../lib/supabase';
+import type { Job, Resource } from '../lib/database.types';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { t } = useTranslation();
+  const [latestJobs, setLatestJobs] = React.useState<Job[]>([]);
+  const [resources, setResources] = React.useState<Resource[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const fetchJobs = async () => {
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
     try {
-      const jobsData = await getJobs();
-      // Take only the first 10 jobs for the home screen
-      setJobs(jobsData.slice(0, 10));
+      const [jobsRes, resourcesRes] = await Promise.all([
+        supabase
+          .from('jobs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('resources')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ]);
+
+      if (jobsRes.data) setLatestJobs(jobsRes.data);
+      if (resourcesRes.data) setResources(resourcesRes.data);
     } catch (error) {
-      console.error('Error fetching jobs:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchJobs();
-  }, []);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchJobs();
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const isDeadlineNear = (dateString: string) => {
-    const deadline = new Date(dateString);
-    const today = new Date();
-    const daysLeft = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysLeft <= 7;
-  };
-
-  if (loading) {
-    return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
-        <ActivityIndicator size="large" color="#1E3A8A" />
-        <Text className="text-lg text-gray-600 mt-4">Loading jobs...</Text>
-      </View>
-    );
-  }
+  const quickLinks = [
+    { id: 'jobs', label: t('home.latestJobs'), icon: '💼', route: '/jobs' },
+    { id: 'practice', label: t('practice.title'), icon: '📝', route: '/practice' },
+    { id: 'resources', label: t('resources.title'), icon: '📚', route: '/resources' },
+    { id: 'settings', label: t('settings.title'), icon: '⚙️', route: '/settings' },
+  ];
 
   return (
-    <View className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="bg-blue-900 px-6 py-8">
-        <Text className="text-3xl font-bold text-white">Rojgar Mitra</Text>
-        <Text className="text-lg text-blue-200 mt-1">રોજગાર મિત્ર</Text>
-        <Text className="text-base text-blue-100 mt-2">Find government jobs in Gujarat</Text>
+    <ScrollView className="flex-1 bg-white">
+      {/* Welcome Section */}
+      <View className="bg-blue-800 p-6">
+        <Text className="text-2xl font-bold text-white mb-2">
+          {t('home.welcome')}
+        </Text>
+        <Text className="text-blue-100">{t('home.subtitle')}</Text>
       </View>
 
-      {/* Job List */}
-      <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 24 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1E3A8A']} />
-        }
-      >
-        <Text className="text-xl font-bold text-gray-800 mb-4">Latest Jobs</Text>
-
-        {jobs.length === 0 ? (
-          <View className="bg-white rounded-xl p-8 items-center shadow-sm">
-            <Ionicons name="briefcase-outline" size={64} color="#9CA3AF" />
-            <Text className="text-lg text-gray-500 mt-4 text-center">No jobs available yet</Text>
-            <Text className="text-sm text-gray-400 mt-2 text-center">Check back later for new opportunities</Text>
-          </View>
-        ) : (
-          jobs.map((job) => (
+      {/* Quick Links */}
+      <View className="p-4">
+        <Text className="text-lg font-semibold mb-3">{t('home.quickLinks')}</Text>
+        <View className="grid grid-cols-2 gap-3">
+          {quickLinks.map((link) => (
             <TouchableOpacity
-              key={job.id}
-              className="bg-white rounded-xl p-5 mb-4 shadow-sm border-l-4 border-blue-900"
-              onPress={() => router.push(`/job/${job.id}`)}
-              activeOpacity={0.7}
+              key={link.id}
+              onPress={() => router.push(link.route)}
+              className="bg-gray-50 p-4 rounded-xl border border-gray-200"
             >
-              <View className="flex-row justify-between items-start">
-                <View className="flex-1">
-                  <Text className="text-xl font-bold text-gray-900">{job.title}</Text>
-                  <Text className="text-base text-blue-700 mt-1">{job.department}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
-              </View>
+              <Text className="text-2xl mb-2">{link.icon}</Text>
+              <Text className="font-medium text-gray-900">{link.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
-              <View className="flex-row items-center mt-4">
-                <Ionicons name="calendar-outline" size={18} color={isDeadlineNear(job.deadline) ? '#DC2626' : '#6B7280'} />
-                <Text className={`text-base ml-2 ${isDeadlineNear(job.deadline) ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
-                  Last Date: {formatDate(job.deadline)}
+      {/* Latest Jobs */}
+      <View className="p-4">
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-lg font-semibold">{t('home.latestJobs')}</Text>
+          <TouchableOpacity onPress={() => router.push('/jobs')}>
+            <Text className="text-blue-600 font-medium">{t('home.viewAll')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <Text className="text-gray-500">{t('common.loading')}</Text>
+        ) : latestJobs.length === 0 ? (
+          <Text className="text-gray-500">{t('jobs.noJobsFound')}</Text>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {latestJobs.map((job) => (
+              <TouchableOpacity
+                key={job.id}
+                onPress={() => router.push(`/job/${job.id}`)}
+                className="bg-gray-50 p-4 rounded-xl mr-3 w-64 border border-gray-200"
+              >
+                <Text className="font-semibold text-gray-900 mb-1" numberOfLines={2}>
+                  {job.title}
                 </Text>
-              </View>
+                <Text className="text-gray-600 text-sm mb-2">{job.organization}</Text>
+                {job.deadline && (
+                  <Text className="text-amber-600 text-sm">Due: {job.deadline}</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
 
-              {job.salary && (
-                <View className="flex-row items-center mt-2">
-                  <Ionicons name="cash-outline" size={18} color="#6B7280" />
-                  <Text className="text-base text-gray-600 ml-2">{job.salary}</Text>
-                </View>
+      {/* Recent Resources */}
+      <View className="p-4">
+        <Text className="text-lg font-semibold mb-3">{t('home.recentResources')}</Text>
+        {resources.length === 0 ? (
+          <Text className="text-gray-500">{t('resources.noResourcesFound')}</Text>
+        ) : (
+          resources.map((resource) => (
+            <TouchableOpacity
+              key={resource.id}
+              onPress={() => router.push(`/resources/${resource.id}`)}
+              className="bg-gray-50 p-4 rounded-xl mb-2 border border-gray-200"
+            >
+              <Text className="font-medium text-gray-900">{resource.title}</Text>
+              {resource.category && (
+                <Text className="text-gray-500 text-sm mt-1">{resource.category}</Text>
               )}
             </TouchableOpacity>
           ))
         )}
-
-        {jobs.length > 0 && (
-          <TouchableOpacity
-            className="bg-blue-900 rounded-xl p-4 mt-2 items-center"
-            onPress={() => router.push('/jobs')}
-          >
-            <Text className="text-lg font-semibold text-white">View All Jobs</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
-
-      {/* Bottom Tab Info */}
-      <View className="bg-white border-t border-gray-200 px-6 py-4">
-        <View className="flex-row justify-around">
-          <View className="items-center">
-            <Ionicons name="home" size={28} color="#1E3A8A" />
-            <Text className="text-xs text-blue-900 font-semibold mt-1">Home</Text>
-          </View>
-          <TouchableOpacity className="items-center" onPress={() => router.push('/jobs')}>
-            <Ionicons name="briefcase" size={28} color="#6B7280" />
-            <Text className="text-xs text-gray-500 mt-1">Jobs</Text>
-          </TouchableOpacity>
-          <TouchableOpacity className="items-center" onPress={() => router.push('/practice')}>
-            <Ionicons name="school" size={28} color="#6B7280" />
-            <Text className="text-xs text-gray-500 mt-1">Practice</Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
