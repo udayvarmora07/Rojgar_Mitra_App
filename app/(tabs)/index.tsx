@@ -1,5 +1,6 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { useJobs } from '../../hooks/useJobs';
@@ -11,6 +12,7 @@ import {
 } from '../../lib/jobsFilter';
 import { deadlineStatus } from '../../lib/deadline';
 import { curve, palette } from '../../constants/theme';
+import { loadSeen, markerFor, newSinceSeen, saveSeen, type SeenMarker } from '../../lib/seenJobs';
 import { Masthead } from '../../components/ui/Masthead';
 import { LanguageToggle } from '../../components/ui/LanguagePicker';
 import { JobCard } from '../../components/jobs/JobCard';
@@ -36,6 +38,38 @@ export default function HomeScreen() {
   const closing = live.filter((job) => deadlineStatus(job.deadline) === 'closingSoon').length;
   const educationCounts = countByEducationLevel(live);
   const departments = listDepartments(live);
+
+  // "New since your last visit": the marker from the previous session is read once, compared
+  // against the current list, then advanced only when the screen loses focus, so a notice
+  // posted while the reader is looking at the list is not lost from the next visit.
+  const [seen, setSeen] = useState<SeenMarker | null>(null);
+  const [seenLoaded, setSeenLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    loadSeen().then((marker) => {
+      if (!active) return;
+      setSeen(marker);
+      setSeenLoaded(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const newCount = useMemo(() => {
+    if (!seenLoaded || live.length === 0) return 0;
+    return newSinceSeen(live, seen).newJobs.length;
+  }, [live, seen, seenLoaded]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // On leaving, record what has been shown. Nothing is written while the list is loading.
+      return () => {
+        if (live.length > 0) void saveSeen(markerFor(live));
+      };
+    }, [live])
+  );
 
   return (
     <Screen>
@@ -65,6 +99,20 @@ export default function HomeScreen() {
           {offline && jobs.length > 0 ? <Banner text={t('offlineBanner')} /> : null}
 
           <SectionHeading title={t('quickActions')} className="mt-1" />
+
+          {/* The first question a daily reader has is "what appeared since yesterday?". */}
+          {newCount > 0 ? (
+            <View
+              accessibilityLiveRegion="polite"
+              style={curve}
+              className="flex-row items-center bg-open-bg border border-open-border rounded-control px-3 py-2 mb-3"
+            >
+              <Ionicons name="sparkles-outline" size={20} color={palette.success} />
+              <Text className="text-label font-bold text-open-text ml-2 flex-1">
+                {t('newSinceVisit', { count: newCount })}
+              </Text>
+            </View>
+          ) : null}
 
           <ActionCard
             emphasis="primary"

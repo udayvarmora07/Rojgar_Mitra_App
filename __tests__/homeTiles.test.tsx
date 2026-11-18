@@ -2,6 +2,9 @@ import { render, screen } from '@testing-library/react-native';
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: () => true }),
+  // Home advances the "new since last visit" marker when it loses focus; in a test there are
+  // no focus events, so the effect body never runs.
+  useFocusEffect: jest.fn(),
 }));
 
 jest.mock('../hooks/useJobs', () => ({

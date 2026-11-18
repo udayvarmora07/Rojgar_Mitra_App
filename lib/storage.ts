@@ -62,4 +62,5 @@ export const STORAGE_KEYS = {
   documents: (scope: string, phase: string) => `docs:v1:${scope}:${phase}`,
   resourcesCache: (scope: string) => `resources:cache:v1:${scope}`,
   applications: 'apply:v1:records',
+  seenJobs: 'jobs:seen:v1',
 } as const;
