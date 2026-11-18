@@ -51,6 +51,8 @@ describe('application records', () => {
       confirmationNo: null,
       advertisementNo: '03/2026',
       deadline: '2026-11-30',
+      title: 'Clerk',
+      sourceLink: 'https://ojas.gujarat.gov.in/',
     });
 
     expect(map['job-1'].advertisementNo).toBe('03/2026');
@@ -67,6 +69,8 @@ describe('application records', () => {
       confirmationNo: null,
       advertisementNo: null,
       deadline: '2026-11-30',
+      title: 'Clerk',
+      sourceLink: 'https://ojas.gujarat.gov.in/',
     });
     expect(store.has(STORAGE_KEYS.applications)).toBe(true);
     const reloaded = await loadApplications();
@@ -79,6 +83,8 @@ describe('application records', () => {
       confirmationNo: null,
       advertisementNo: 'A-1',
       deadline: '2026-12-01',
+      title: 'Clerk',
+      sourceLink: 'https://ojas.gujarat.gov.in/',
     });
     const appliedAt = first['job-1'].appliedAt;
 
@@ -93,6 +99,8 @@ describe('application records', () => {
       confirmationNo: null,
       advertisementNo: null,
       deadline: '2026-12-01',
+      title: 'Clerk',
+      sourceLink: 'https://ojas.gujarat.gov.in/',
     });
     const updated = await setConfirmationNo('job-1', '   ');
     expect(updated['job-1'].confirmationNo).toBeNull();
@@ -109,6 +117,8 @@ describe('application records', () => {
       confirmationNo: 'CF-1',
       advertisementNo: null,
       deadline: '2026-12-01',
+      title: 'Clerk',
+      sourceLink: 'https://ojas.gujarat.gov.in/',
     });
     const map = await unmarkApplied('job-1');
     expect(map['job-1']).toBeUndefined();
@@ -121,6 +131,8 @@ describe('application records', () => {
       confirmationNo: 'CF-1',
       advertisementNo: null,
       deadline: '2026-12-01',
+      title: 'Clerk',
+      sourceLink: 'https://ojas.gujarat.gov.in/',
     });
     await clearAppData();
     await expect(loadApplications()).resolves.toEqual({});
@@ -133,6 +145,8 @@ describe('application records', () => {
       confirmationNo: null,
       advertisementNo: null,
       deadline: '2026-12-01',
+      title: 'Clerk',
+      sourceLink: 'https://ojas.gujarat.gov.in/',
     });
     await clearAppData();
     expect(store.get(STORAGE_KEYS.language)).toBe('gu');
@@ -141,5 +155,22 @@ describe('application records', () => {
   it('uses the same closing-soon window as the deadline stamp', () => {
     // The stamp treats <= 7 days as urgent, so a warning inside that window agrees with it.
     expect(APPLY_WARNING_DAYS).toBe(7);
+  });
+
+  it('captures the notice title and official link at apply time', async () => {
+    // Once a notice expires it leaves the live list, and the call letter appears on the
+    // official page. Without a captured link the applications screen becomes a dead end.
+    const map = await markApplied({
+      jobId: 'job-1',
+      confirmationNo: null,
+      advertisementNo: 'A-1',
+      deadline: '2026-11-30',
+      title: 'Deputy Town Planner',
+      sourceLink: 'https://www.freejobalert.com/articles/smc-3079154',
+    });
+    expect(map['job-1'].title).toBe('Deputy Town Planner');
+    expect(map['job-1'].sourceLink).toBe(
+      'https://www.freejobalert.com/articles/smc-3079154'
+    );
   });
 });

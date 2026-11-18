@@ -54,6 +54,10 @@ export function ApplyTracker({ job }: { job: Job }) {
       confirmationNo: null,
       advertisementNo: job.advertisement_no,
       deadline: job.deadline,
+      // Captured now: after this notice expires it leaves the list, and the official page is
+      // where the call letter will appear.
+      title: job.title,
+      sourceLink: job.source_link,
     });
     setRecord(map[job.id] ?? null);
     setEditing(false);

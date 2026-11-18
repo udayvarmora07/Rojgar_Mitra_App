@@ -284,6 +284,7 @@ const en = {
   applicationsIntro: 'The notices you marked as applied',
   noApplications: 'No applications marked yet',
   noApplicationsHint: 'Open a notice and mark it after you apply on the official website.',
+  openNotice: 'Open the official notice',
 
   // Settings
   settingsTitle: 'Settings',

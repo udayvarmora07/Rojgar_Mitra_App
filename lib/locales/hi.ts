@@ -286,6 +286,7 @@ const hi: TranslationShape = {
   applicationsIntro: 'आपने जिन सूचनाओं को आवेदन किया हुआ चिह्नित किया',
   noApplications: 'अभी कोई आवेदन चिह्नित नहीं',
   noApplicationsHint: 'सूचना खोलें और आधिकारिक वेबसाइट पर आवेदन के बाद चिह्नित करें।',
+  openNotice: 'आधिकारिक सूचना खोलें',
 
   // Settings
   settingsTitle: 'सेटिंग्स',

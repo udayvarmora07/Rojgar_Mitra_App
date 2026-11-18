@@ -286,6 +286,7 @@ const gu: TranslationShape = {
   applicationsIntro: 'તમે અરજી કરેલી તરીકે નોંધેલી જાહેરાતો',
   noApplications: 'હજુ કોઈ અરજી નોંધાઈ નથી',
   noApplicationsHint: 'જાહેરાત ખોલો અને સત્તાવાર વેબસાઇટ પર અરજી કર્યા પછી નોંધો.',
+  openNotice: 'સત્તાવાર જાહેરાત ખોલો',
 
   // Settings
   settingsTitle: 'સેટિંગ્સ',

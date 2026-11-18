@@ -1,16 +1,19 @@
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { Masthead } from '../components/ui/Masthead';
 import { LanguageToggle } from '../components/ui/LanguagePicker';
+import { openExternalLink } from '../lib/externalLink';
+import { isSafeWebUrl } from '../lib/url';
 import { Screen } from '../components/ui/Screen';
 import { SectionHeading } from '../components/ui/SectionHeading';
 import { EmptyState, Footnote, LoadingState } from '../components/ui/States';
 import { JobCard } from '../components/jobs/JobCard';
 import { Mono } from '../components/ui/Mono';
-import { curve } from '../constants/theme';
+import { curve, palette } from '../constants/theme';
 import { useJobs } from '../hooks/useJobs';
 import { useLanguage } from '../hooks/useLanguage';
 import { loadApplications, type ApplicationMap } from '../lib/applications';
@@ -59,6 +62,12 @@ export default function ApplicationsScreen() {
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const total = Object.keys(records).length;
+
+  // The official page is where the call letter appears, so an archived record must stay
+  // reachable after its notice leaves the live list.
+  const openNotice = async (link: string | null) => {
+    if (!(await openExternalLink(link))) Alert.alert(t('linkError'));
+  };
 
   return (
     <Screen>
@@ -112,13 +121,16 @@ export default function ApplicationsScreen() {
                   <View style={curve} className="bg-card border border-rule rounded-card px-4 mb-4">
                     {archived.map((record, index) => {
                       const job = byId.get(record.jobId);
+                      // Prefer the recorded values: the live job may have been evicted.
+                      const title = job?.title ?? record.title ?? record.jobId;
+                      const link = job?.source_link ?? record.sourceLink;
                       return (
                         <View
                           key={record.jobId}
                           className={`py-3 ${index > 0 ? 'border-t border-rule' : ''}`}
                         >
                           <Text className="text-body font-semibold text-ink" numberOfLines={2}>
-                            {job?.title ?? record.jobId}
+                            {title}
                           </Text>
                           <View className="flex-row items-baseline mt-1">
                             <Text className="text-label text-ink-soft">
@@ -137,6 +149,19 @@ export default function ApplicationsScreen() {
                                 {record.confirmationNo}
                               </Mono>
                             </View>
+                          ) : null}
+                          {isSafeWebUrl(link) ? (
+                            <Pressable
+                              accessibilityRole="link"
+                              accessibilityLabel={`${t('openNotice')}: ${title}`}
+                              onPress={() => openNotice(link)}
+                              className="mt-2 min-h-[48px] flex-row items-center active:opacity-70"
+                            >
+                              <Ionicons name="open-outline" size={18} color={palette.navy} />
+                              <Text className="text-label font-bold text-navy ml-2">
+                                {t('openNotice')}
+                              </Text>
+                            </Pressable>
                           ) : null}
                         </View>
                       );

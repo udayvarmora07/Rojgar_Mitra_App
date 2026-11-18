@@ -21,6 +21,15 @@ export type ApplicationRecord = {
   appliedAt: string;
   /** The deadline at the time of applying, so a passed deadline still reads correctly. */
   deadline: string;
+  /**
+   * The notice title and its official link, captured at apply time.
+   *
+   * A job that has dropped out of the cached list (expired, or evicted from the cache) would
+   * otherwise be a dead end on the applications screen — and the call letter lives on the
+   * official site, so the reader needs that link most after the deadline.
+   */
+  title: string | null;
+  sourceLink: string | null;
 };
 
 export type ApplicationMap = Record<string, ApplicationRecord>;
