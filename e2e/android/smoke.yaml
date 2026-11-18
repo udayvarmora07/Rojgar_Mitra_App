@@ -44,4 +44,10 @@ appId: com.rojgarmitra.app
 - assertVisible: "Settings"
 - assertVisible: "Language"
 - tapOn: "Home"
+# The tab keeps the scroll position it had before, so return to the top before asserting.
+- scrollUntilVisible:
+    element:
+      text: "What do you want to do?"
+    direction: UP
+    timeout: 30000
 - assertVisible: "What do you want to do?"
