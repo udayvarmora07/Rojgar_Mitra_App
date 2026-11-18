@@ -207,7 +207,8 @@ profile**.
 | Python scraper | `unittest discover -s scraper` | **14 tests** |
 | Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass, **now covering the guide (incl. its axe audit) and applications screens** |
 | Native E2E | `maestro test e2e/android/smoke.yaml` | **every step COMPLETED** on `rm_api34` |
-| Native screens | Maestro flows | guide (OTR trap, 15 KB), eligibility (`Age Limit 18 to 24 Years`), applied tracker, per-job document list |
+| Native screens | Maestro flows | guide (OTR trap, 15 KB), eligibility (`Age Limit 18 to 24 Years`), applied tracker, per-job document list, applications list |
+| **CI** | run **44416195568** on `main` | **all five jobs success**: app checks, scrapers, build-web, live gates + web E2E + axe, **native Android E2E** |
 
 ### Still open
 
