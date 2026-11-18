@@ -50,4 +50,8 @@ appId: com.rojgarmitra.app
       text: "What do you want to do?"
     direction: UP
     timeout: 30000
-- assertVisible: "What do you want to do?"
+# `assertVisible` checks the current frame only, which flaked here when the tab transition
+# had not settled. `extendedWaitUntil` retries, and the text is the same thing being asserted.
+- extendedWaitUntil:
+    visible: "What do you want to do?"
+    timeout: 30000
