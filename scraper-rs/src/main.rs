@@ -109,14 +109,15 @@ fn run(dry_run: bool, resources_only: bool, skip_resources: bool) -> i32 {
     }
     // Only rows that are new (or still missing facts) reach the network, so a daily run stays
     // close to the listing's own cost.
-    let (pages_fetched, locations_found, detail_rows) =
+    let (pages_fetched, locations_found, detail_rows, document_rows) =
         enrich_locations(&mut client, &mut valid, &present);
     if pages_fetched > 0 {
         println!(
-            "📍 detail pages: {} fetched, {} with a stated location, {} eligibility records",
+            "📍 detail pages: {} fetched, {} with a stated location, {} eligibility records, {} documents",
             pages_fetched,
             locations_found,
-            detail_rows.len()
+            detail_rows.len(),
+            document_rows.len()
         );
     }
 
@@ -145,6 +146,14 @@ fn run(dry_run: bool, resources_only: bool, skip_resources: bool) -> i32 {
             match db::insert_job_details(&detail_rows) {
                 Ok(written) => println!("🧾 {} eligibility records written", written),
                 Err(err) => eprintln!("⚠️  Could not write eligibility records: {err}"),
+            }
+        }
+
+        // The notice's own document list, written after the job rows so the FK resolves.
+        if !document_rows.is_empty() {
+            match db::insert_documents(&document_rows) {
+                Ok(written) => println!("📄 {} document requirements written", written),
+                Err(err) => eprintln!("⚠️  Could not write document requirements: {err}"),
             }
         }
     } else {
@@ -191,10 +200,11 @@ fn enrich_locations(
     client: &mut fetch::Client,
     jobs: &mut [Job],
     present: &HashSet<String>,
-) -> (usize, usize, Vec<db::DetailRow>) {
+) -> (usize, usize, Vec<db::DetailRow>, Vec<db::DocumentRow>) {
     let mut fetched = 0usize;
     let mut found = 0usize;
     let mut details: Vec<db::DetailRow> = Vec::new();
+    let mut documents: Vec<db::DocumentRow> = Vec::new();
     for job in jobs.iter_mut() {
         let complete = job.location.is_some() && job.salary.is_some();
         if complete || present.contains(&job.source_link) {
@@ -233,12 +243,22 @@ fn enrich_locations(
                 });
                 got = true;
             }
+            // The article's own "Documents Required" list, which is what the checklist screen
+            // shows instead of the generic fallback. Documents are needed to apply, so they are
+            // recorded in the `Application` phase.
+            for document_name in parse::freejobalert_documents(&html) {
+                documents.push(db::DocumentRow {
+                    job_source_link: job.source_link.clone(),
+                    document_name,
+                    phase: "Application".to_string(),
+                });
+            }
             if got {
                 found += 1;
             }
         }
     }
-    (fetched, found, details)
+    (fetched, found, details, documents)
 }
 
 fn scrape_resources(

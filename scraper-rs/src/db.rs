@@ -233,6 +233,99 @@ pub fn insert_job_details(details: &[DetailRow]) -> Result<usize, String> {
     Ok(written)
 }
 
+/// One required document for a job, written to `public.documents_required`.
+pub struct DocumentRow {
+    pub job_source_link: String,
+    pub document_name: String,
+    /// `Application` or `Exam Center`, matching the schema's CHECK constraint.
+    pub phase: String,
+}
+
+/// Writes the per-job document list for jobs that have none.
+///
+/// `documents_required` had 0 rows for every scraped advertisement, so the checklist screens
+/// always fell back to the generic list. Rows come from the article's own "Documents Required"
+/// section and are attributed to the `Application` phase, which is when they are needed.
+pub fn insert_documents(documents: &[DocumentRow]) -> Result<usize, String> {
+    if documents.is_empty() {
+        return Ok(0);
+    }
+    let (url, key) = credentials()?;
+    let agent = agent();
+
+    let mut by_job: std::collections::HashMap<&str, Vec<&DocumentRow>> =
+        std::collections::HashMap::new();
+    for row in documents {
+        by_job.entry(row.job_source_link.as_str()).or_default().push(row);
+    }
+
+    let mut written = 0usize;
+    for (link, rows) in by_job {
+        let lookup = format!(
+            "{url}/rest/v1/jobs?select=id,source_link&source_link=eq.{}",
+            encode_query(link)
+        );
+        let jobs: Vec<JobIdRow> = match agent
+            .get(&lookup)
+            .header("apikey", &key)
+            .header("Authorization", &format!("Bearer {key}"))
+            .call()
+        {
+            Ok(mut response) => response
+                .body_mut()
+                .read_json::<Vec<JobIdRow>>()
+                .map_err(|e| format!("could not read job id: {e}"))?,
+            Err(err) => return Err(format!("could not look up job: {err}")),
+        };
+        let Some(job_id) = jobs.into_iter().next().map(|r| r.id) else {
+            continue;
+        };
+
+        // Skip a job that already has rows, so a re-run cannot duplicate the list.
+        let existing =
+            format!("{url}/rest/v1/documents_required?select=id&job_id=eq.{job_id}&limit=1");
+        let has_rows: Vec<serde_json::Value> = match agent
+            .get(&existing)
+            .header("apikey", &key)
+            .header("Authorization", &format!("Bearer {key}"))
+            .call()
+        {
+            Ok(mut response) => response
+                .body_mut()
+                .read_json::<Vec<serde_json::Value>>()
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
+        if !has_rows.is_empty() {
+            continue;
+        }
+
+        let payload: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|row| {
+                serde_json::json!({
+                    "job_id": job_id,
+                    "document_name": row.document_name,
+                    "phase": row.phase,
+                })
+            })
+            .collect();
+        let body = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
+        match agent
+            .post(&format!("{url}/rest/v1/documents_required"))
+            .header("apikey", &key)
+            .header("Authorization", &format!("Bearer {key}"))
+            .header("Content-Type", "application/json")
+            .header("Prefer", "return=minimal")
+            .send(body.as_bytes())
+        {
+            Ok(_) => written += payload.len(),
+            Err(err) => return Err(format!("insert documents failed: {err}")),
+        }
+    }
+    Ok(written)
+}
+
 /// Percent-encodes a value for use inside a PostgREST `eq.` filter.
 ///
 /// Article URLs contain `:` and `/`, which PostgREST treats as filter syntax, so everything

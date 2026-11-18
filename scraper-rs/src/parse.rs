@@ -148,6 +148,56 @@ pub fn freejobalert_qualification(html: &str) -> Option<String> {
     freejobalert_field(html, &["qualification", "educational qualification"])
 }
 
+/// The per-job "Documents Required" list from a FreeJobAlert article.
+///
+/// Each item is returned as plain text, newest-first order preserved. The section is
+/// normally an `<h2>Documents Required</h2>` followed by a `<ul>`; a few articles render it
+/// as `<h3>`. Items are trimmed and capped so one long paragraph cannot become a row.
+///
+/// This is what fills `public.documents_required`, which had 0 rows for every scraped job:
+/// the screens fell back to the generic PRD 5.5 checklist instead of the notice's own list.
+pub fn freejobalert_documents(html: &str) -> Vec<String> {
+    let document = Html::parse_document(html);
+    let heading_sel =
+        Selector::parse("h2, h3, h4").expect("static selector");
+    let li_sel = Selector::parse("li").expect("static selector");
+
+    for heading in document.select(&heading_sel) {
+        let title = text_of(&heading).to_lowercase();
+        if !(title.contains("document") || title.contains("certificate")) {
+            continue;
+        }
+        // Walk the siblings that follow the heading until the next heading of the same rank.
+        let mut items = Vec::new();
+        for sibling in heading
+            .parent()
+            .map(|p| p.children())
+            .into_iter()
+            .flatten()
+            .skip_while(|n| n.id() != heading.id())
+            .skip(1)
+        {
+            if sibling.value().is_element() {
+                let el = ElementRef::wrap(sibling).expect("element");
+                let tag = el.value().name();
+                if tag == "h2" || tag == "h3" || tag == "h4" {
+                    break;
+                }
+                for li in el.select(&li_sel) {
+                    let text = clean(&text_of(&li));
+                    if !text.is_empty() && text.len() >= 4 {
+                        items.push(text.chars().take(300).collect::<String>());
+                    }
+                }
+                if !items.is_empty() {
+                    return items;
+                }
+            }
+        }
+    }
+    Vec::new()
+}
+
 /// Reads the second cell of the table row whose first cell matches one of `labels`.
 ///
 /// Articles render each fact as its own two-cell row, so one helper serves every field.
@@ -503,6 +553,55 @@ mod tests {
     fn location_only_article_still_yields_no_salary() {
         assert_eq!(freejobalert_location(FJA_ARTICLE_HTML).as_deref(), Some("Surat"));
         assert_eq!(freejobalert_salary(FJA_ARTICLE_HTML), None);
+    }
+
+    /// The real section shape, verified against a live SMC article: an `h2` followed by a `ul`
+    /// of documents, then another heading that must stop the scan.
+    const FJA_DOCS_ARTICLE: &str = r#"
+    <div class="entry-content">
+      <h2>How to Apply Online</h2>
+      <ul><li>Open the official website</li></ul>
+      <h2>Documents Required</h2>
+      <ul>
+        <li>Proof of age: birth certificate, school leaving certificate</li>
+        <li>Educational qualification: mark sheets and degree certificate</li>
+        <li>Experience certificate on the institution's letterhead</li>
+      </ul>
+      <h2>Application Fee</h2>
+      <ul><li>Rs. 100 for General</li></ul>
+    </div>"#;
+
+    #[test]
+    fn reads_the_documents_required_list() {
+        let docs = freejobalert_documents(FJA_DOCS_ARTICLE);
+        assert_eq!(docs.len(), 3);
+        assert!(docs[0].starts_with("Proof of age"));
+        assert!(docs[1].starts_with("Educational qualification"));
+    }
+
+    #[test]
+    fn stops_the_document_list_at_the_next_heading() {
+        // The fee section that follows must not leak into the document list.
+        let docs = freejobalert_documents(FJA_DOCS_ARTICLE);
+        assert!(!docs.iter().any(|d| d.contains("Rs. 100")));
+    }
+
+    #[test]
+    fn an_article_without_a_document_section_yields_nothing() {
+        assert!(freejobalert_documents(FJA_ARTICLE_HTML).is_empty());
+        assert!(freejobalert_documents("<p>no lists here</p>").is_empty());
+    }
+
+    #[test]
+    fn document_items_are_trimmed_and_capped() {
+        let long = "x".repeat(500);
+        let html = format!(
+            "<div><h2>Documents Required</h2><ul><li>  {long}  </li></ul></div>"
+        );
+        let docs = freejobalert_documents(&html);
+        assert_eq!(docs.len(), 1);
+        // A single long paragraph must not become a screen-filling row.
+        assert_eq!(docs[0].chars().count(), 300);
     }
 
     #[test]
