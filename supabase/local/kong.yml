@@ -1,0 +1,25 @@
+_format_version: "1.1"
+
+# Local Supabase-equivalent gateway. Mirrors the URL layout a hosted project exposes so the
+# app's supabase-js client (and supabase-py) work unchanged:
+#   /rest/v1/*      -> PostgREST
+#   /functions/v1/* -> Edge Runtime
+#
+# Upstreams use the static addresses assigned in scripts/local-supabase.sh. Kong's Lua DNS
+# client cannot reliably resolve Docker's embedded resolver, so names are not used here.
+services:
+  - name: rest
+    url: http://172.31.250.12:3000
+    routes:
+      - name: rest-v1
+        paths:
+          - /rest/v1
+        strip_path: true
+
+  - name: functions
+    url: http://172.31.250.13:9000
+    routes:
+      - name: functions-v1
+        paths:
+          - /functions/v1
+        strip_path: true

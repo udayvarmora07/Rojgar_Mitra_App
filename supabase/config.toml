@@ -1,0 +1,6 @@
+# Minimal Supabase CLI config for this project.
+project_id = "wiyryfopgjdzirndyxzp"
+
+[functions.generate-test]
+# The app calls with a non-JWT publishable key; the function checks the `apikey` header itself.
+verify_jwt = false

@@ -18,5 +18,3 @@
 - **DB Sync:** `npx supabase db push`
 
 Language: The app must support three languages: English, Gujarati, and Hindi. Implement a localization system (i18next). Default components should adapt to the user's selected language.
-# currentDate
-Todayʼs date is 2026-04-23.

@@ -1,0 +1,116 @@
+{
+  "_source": "Sub-topics from the published GSSSB Class-3 CCE, GPSSB Talati-cum-Mantri and GPSC Prelims syllabi.",
+  "languages": {
+    "en": "simple English",
+    "gu": "simple, everyday Gujarati written in Gujarati script (ગુજરાતી લિપિ)",
+    "hi": "simple, everyday Hindi written in Devanagari script (देवनागरी)"
+  },
+  "question_styles": [
+    "direct one-line question",
+    "statement-based: \"Which of the following statements is correct / NOT correct?\"",
+    "match the pairs, where each option lists a full set of pairings",
+    "odd one out",
+    "fill in the blank"
+  ],
+  "topics": {
+    "gk": {
+      "area": "General Knowledge for Gujarat government exams",
+      "subtopics": [
+        "Indian Constitution: Preamble, Fundamental Rights and Duties, Directive Principles",
+        "Panchayati Raj: 73rd Amendment, Gram Panchayat, Gram Sabha, Taluka and District Panchayat",
+        "Indian freedom movement and Gandhiji (Dandi March, Champaran, Quit India)",
+        "History of Gujarat: Solanki and Maitraka dynasties, Sultanate, formation of Gujarat in 1960",
+        "Culture of Gujarat: fairs (Tarnetar, Vautha, Bhavnath), folk dances, festivals, handicrafts",
+        "Geography of Gujarat: districts, rivers, dams, ports, national parks and sanctuaries",
+        "Geography of India: rivers, mountains, states and capitals, soils, crops",
+        "General Science: human body, nutrition and diseases, basic physics and chemistry in daily life",
+        "Indian economy basics: banks, RBI, budget, GST, agriculture schemes",
+        "Computer basics: hardware, software, MS Office, internet, shortcut keys"
+      ]
+    },
+    "math": {
+      "area": "Quantitative Aptitude",
+      "subtopics": [
+        "number system and simplification (BODMAS)",
+        "LCM and HCF",
+        "percentage",
+        "profit and loss",
+        "simple and compound interest",
+        "ratio and proportion",
+        "average",
+        "time and work",
+        "time, speed and distance",
+        "mensuration (area, perimeter, volume)",
+        "problems on ages",
+        "data interpretation from a small table"
+      ]
+    },
+    "reasoning": {
+      "area": "Reasoning Ability (verbal and non-verbal, written as text)",
+      "subtopics": [
+        "number series",
+        "letter series",
+        "coding-decoding",
+        "blood relations",
+        "direction sense",
+        "seating arrangement in a row",
+        "ranking and order",
+        "analogy",
+        "odd one out",
+        "syllogism",
+        "calendar",
+        "clock"
+      ]
+    },
+    "gujarati": {
+      "area": "Gujarati Grammar and Literature (ગુજરાતી વ્યાકરણ અને સાહિત્ય)",
+      "subtopics": [
+        "સંધિ (છોડો/જોડો)",
+        "સમાસ ઓળખો",
+        "અલંકાર ઓળખો",
+        "છંદ ઓળખો",
+        "કહેવતોનો અર્થ",
+        "રૂઢિપ્રયોગનો અર્થ",
+        "સાચી જોડણી",
+        "સમાનાર્થી શબ્દ",
+        "વિરુદ્ધાર્થી શબ્દ",
+        "શબ્દસમૂહ માટે એક શબ્દ",
+        "કર્તરિ-કર્મણિ વાક્ય",
+        "કૃદંત",
+        "નિપાત",
+        "વિભક્તિ",
+        "ગુજરાતી સાહિત્યકારોનાં ઉપનામ અને કૃતિઓ"
+      ]
+    },
+    "english": {
+      "area": "General English",
+      "subtopics": [
+        "tenses",
+        "articles",
+        "prepositions",
+        "active and passive voice",
+        "direct and indirect speech",
+        "synonyms",
+        "antonyms",
+        "one-word substitution",
+        "idioms and phrases",
+        "spotting the error",
+        "fill in the blank",
+        "correct spelling"
+      ]
+    },
+    "current": {
+      "area": "Gujarat and India general awareness (schemes, institutions, important days, sports, awards)",
+      "subtopics": [
+        "major Government of Gujarat welfare schemes",
+        "major Government of India schemes",
+        "important national and international days",
+        "constitutional and statutory bodies",
+        "sports: trophies, terms and venues",
+        "national awards and honours",
+        "science and space missions of India",
+        "Gujarat tourism and heritage sites"
+      ]
+    }
+  }
+}

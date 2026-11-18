@@ -1,160 +1,311 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { supabase } from '../../lib/supabase';
-import type { Job } from '../../lib/database.types';
+import { useCallback, useEffect, useState } from "react";
+import { Alert, Linking, ScrollView, Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from "react-i18next";
+import {
+  getDocumentsRequired,
+  getJobById,
+  getJobDetails,
+  DocumentRequired,
+  Job,
+  JobDetail,
+} from "../../lib/supabase";
+import { formatDate } from "../../lib/deadline";
+import { isSafeWebUrl } from "../../lib/url";
+import { useLanguage } from "../../hooks/useLanguage";
+import { Header } from "../../components/ui/Header";
+import { Card, SectionTitle } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { EmptyState, LoadingState } from "../../components/ui/States";
+import { DeadlineBadge } from "../../components/jobs/DeadlineBadge";
+
+type IconName = keyof typeof Ionicons.glyphMap;
+
+function InfoRow({
+  icon,
+  label,
+  value,
+  danger,
+}: {
+  icon: IconName;
+  label: string;
+  value: string;
+  danger?: boolean;
+}) {
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${label}: ${value}`}
+      className="flex-row items-start mb-4"
+    >
+      <Ionicons name={icon} size={26} color={danger ? "#DC2626" : "#1E3A8A"} />
+      <View className="ml-3 flex-1">
+        <Text className="text-lg text-gray-700">{label}</Text>
+        <Text
+          className={`text-lg font-semibold ${danger ? "text-alert" : "text-ink"}`}
+        >
+          {value}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
-  const [job, setJob] = React.useState<Job | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const { language } = useLanguage();
+  const [job, setJob] = useState<Job | null>(null);
+  const [details, setDetails] = useState<JobDetail[]>([]);
+  const [documents, setDocuments] = useState<DocumentRequired[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [partialFailure, setPartialFailure] = useState(false);
 
-  React.useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    fetchJob();
-  }, [id]);
-
-  const fetchJob = async () => {
+    setLoading(true);
+    setFailed(false);
+    setPartialFailure(false);
     try {
-      const { data, error } = await supabase
-        .from('jobs')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      setJob(data);
-    } catch (error) {
-      console.error('Error fetching job:', error);
+      const [jobData, detailResult, docResult] = await Promise.allSettled([
+        getJobById(id),
+        getJobDetails(id),
+        getDocumentsRequired(id),
+      ]);
+      if (jobData.status === "rejected") throw jobData.reason;
+      setJob(jobData.value);
+      setDetails(detailResult.status === "fulfilled" ? detailResult.value : []);
+      setDocuments(docResult.status === "fulfilled" ? docResult.value : []);
+      setPartialFailure(
+        detailResult.status === "rejected" || docResult.status === "rejected",
+      );
+    } catch {
+      setFailed(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const handleApply = async () => {
-    if (job?.apply_link) {
-      await Linking.openURL(job.apply_link);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
+
+  const openSource = async () => {
+    if (!isSafeWebUrl(job?.source_link)) return;
+    try {
+      await Linking.openURL(job.source_link.trim());
+    } catch {
+      Alert.alert(t("linkError"));
     }
-  };
-
-  const handleShare = async () => {
-    // Native share would be implemented here
-    console.log('Share job:', job?.title);
   };
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-lg text-gray-600">{t('common.loading')}</Text>
+      <View className="flex-1 bg-surface">
+        <Header title={t("jobInfo")} onBack={back} />
+        <LoadingState label={t("loading")} />
       </View>
     );
   }
 
   if (!job) {
     return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-lg text-gray-600">{t('jobs.noJobsFound')}</Text>
+      <View className="flex-1 bg-surface">
+        <Header title={t("jobInfo")} onBack={back} />
+        <View className="p-4">
+          <EmptyState
+            icon="alert-circle-outline"
+            title={failed ? t("error") : t("jobNotFound")}
+            action={
+              <Button
+                label={failed ? t("retry") : t("goBack")}
+                onPress={failed ? load : back}
+              />
+            }
+          />
+        </View>
       </View>
     );
   }
 
+  const applicationDocs = documents.filter((d) => d.phase === "Application");
+  const examDocs = documents.filter((d) => d.phase === "Exam Center");
+
   return (
-    <ScrollView className="flex-1 bg-white">
-      {/* Header */}
-      <View className="bg-blue-800 p-6">
-        <Text className="text-2xl font-bold text-white mb-2">{job.title}</Text>
-        <Text className="text-lg text-blue-100">{job.organization}</Text>
-      </View>
+    <View className="flex-1 bg-surface">
+      <Header title={job.title} subtitle={job.department} onBack={back} />
 
-      {/* Quick Info */}
-      <View className="p-4 border-b border-gray-200">
-        <View className="flex-row flex-wrap gap-4">
-          {job.location && (
-            <View className="bg-gray-100 px-4 py-2 rounded-lg">
-              <Text className="text-sm text-gray-600">{t('jobs.location')}</Text>
-              <Text className="font-medium">{job.location}</Text>
-            </View>
-          )}
-          {job.salary_min && job.salary_max && (
-            <View className="bg-gray-100 px-4 py-2 rounded-lg">
-              <Text className="text-sm text-gray-600">{t('jobs.salary')}</Text>
-              <Text className="font-medium">
-                {job.salary_min} - {job.salary_max}
-              </Text>
-            </View>
-          )}
-          {job.deadline && (
-            <View className="bg-gray-100 px-4 py-2 rounded-lg">
-              <Text className="text-sm text-gray-600">{t('jobs.deadline')}</Text>
-              <Text className="font-medium">{job.deadline}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* Description */}
-      {job.description && (
-        <View className="p-4 border-b border-gray-200">
-          <Text className="text-xl font-semibold mb-2">Description</Text>
-          <Text className="text-gray-700 leading-6">{job.description}</Text>
-        </View>
-      )}
-
-      {/* Requirements */}
-      {job.requirements && job.requirements.length > 0 && (
-        <View className="p-4 border-b border-gray-200">
-          <Text className="text-xl font-semibold mb-2">{t('jobs.requirements')}</Text>
-          {job.requirements.map((req, index) => (
-            <View key={index} className="flex-row items-start mb-2">
-              <Text className="text-green-600 mr-2">•</Text>
-              <Text className="text-gray-700 flex-1">{req}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Source */}
-      {job.source && (
-        <View className="p-4 border-b border-gray-200">
-          <Text className="text-xl font-semibold mb-2">{t('jobs.source')}</Text>
-          <View className="flex-row items-center">
-            <Text className="text-gray-600">{job.source}</Text>
-            {job.source_url && (
-              <TouchableOpacity
-                onPress={() => Linking.openURL(job.source_url!)}
-                className="ml-2"
-              >
-                <Text className="text-blue-600 underline">View Original</Text>
-              </TouchableOpacity>
-            )}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      >
+        {partialFailure ? (
+          <View className="mb-4">
+            <EmptyState
+              icon="cloud-offline-outline"
+              title={t("loadFailed")}
+              hint={t("loadFailedHint")}
+              action={
+                <Button icon="refresh" label={t("retry")} onPress={load} />
+              }
+            />
           </View>
-        </View>
-      )}
+        ) : null}
 
-      {/* Action Buttons */}
-      <View className="p-4 gap-3">
-        {job.apply_link && (
-          <TouchableOpacity
-            onPress={handleApply}
-            className="bg-green-600 p-4 rounded-xl items-center"
-          >
-            <Text className="text-white text-lg font-semibold">
-              {t('jobs.applyNow')}
+        <Card>
+          <SectionTitle>{t("jobInfo")}</SectionTitle>
+          <InfoRow
+            icon="business-outline"
+            label={t("department")}
+            value={job.department}
+          />
+          <InfoRow
+            icon="calendar-outline"
+            label={t("postDate")}
+            value={formatDate(job.post_date, language, "long")}
+          />
+          <InfoRow
+            icon="time-outline"
+            label={t("deadline")}
+            value={formatDate(job.deadline, language, "long")}
+            danger
+          />
+          {job.vacancies != null ? (
+            <InfoRow
+              icon="people-outline"
+              label={t("vacancies")}
+              value={t("vacancyCount", { count: job.vacancies })}
+            />
+          ) : null}
+          {job.qualification ? (
+            <InfoRow
+              icon="school-outline"
+              label={t("qualification")}
+              value={job.qualification}
+            />
+          ) : null}
+          {job.advertisement_no ? (
+            <InfoRow
+              icon="document-outline"
+              label={t("advertisementNo")}
+              value={job.advertisement_no}
+            />
+          ) : null}
+          {job.salary ? (
+            <InfoRow
+              icon="cash-outline"
+              label={t("salary")}
+              value={job.salary}
+            />
+          ) : null}
+          <DeadlineBadge deadline={job.deadline} />
+        </Card>
+
+        <Card>
+          <SectionTitle>{t("eligibility")}</SectionTitle>
+          {details.length === 0 && !partialFailure ? (
+            <Text className="text-lg text-gray-700">
+              {t("noEligibilityInfo")}
             </Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={handleShare}
-          className="bg-gray-200 p-4 rounded-xl items-center"
-        >
-          <Text className="text-gray-800 text-lg font-semibold">
-            {t('jobs.share')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          ) : (
+            details.map((detail) => (
+              <View key={detail.id}>
+                <InfoRow
+                  icon="person-outline"
+                  label={t("ageLimit")}
+                  value={detail.age_limit}
+                />
+                <InfoRow
+                  icon="school-outline"
+                  label={t("qualification")}
+                  value={detail.required_qualifications}
+                />
+                {detail.application_fees ? (
+                  <InfoRow
+                    icon="card-outline"
+                    label={t("fees")}
+                    value={detail.application_fees}
+                  />
+                ) : null}
+              </View>
+            ))
+          )}
+          <Button
+            variant="secondary"
+            icon="checkmark-done"
+            label={t("checkEligibility")}
+            onPress={() =>
+              router.push({
+                pathname: "/eligibility/[jobId]",
+                params: { jobId: job.id },
+              })
+            }
+          />
+        </Card>
+
+        <Card>
+          <SectionTitle>{t("requiredDocuments")}</SectionTitle>
+          {documents.length === 0 ? (
+            <Text className="text-lg text-gray-700 mb-4">
+              {t("noDocumentsInfo")}
+            </Text>
+          ) : (
+            [
+              { title: t("documentsToApply"), list: applicationDocs },
+              { title: t("documentsForExam"), list: examDocs },
+            ]
+              .filter((group) => group.list.length > 0)
+              .map((group) => (
+                <View key={group.title} className="mb-4">
+                  <Text className="text-lg font-bold text-primary mb-2">
+                    {group.title}
+                  </Text>
+                  {group.list.map((doc) => (
+                    <View key={doc.id} className="flex-row items-center mb-2">
+                      <Ionicons
+                        name="document-text-outline"
+                        size={22}
+                        color="#047857"
+                      />
+                      <Text className="text-lg text-ink ml-2 flex-1">
+                        {doc.document_name}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ))
+          )}
+          <Button
+            variant="secondary"
+            icon="list"
+            label={t("viewDocuments")}
+            onPress={() =>
+              router.push({ pathname: "/documents", params: { jobId: job.id } })
+            }
+          />
+        </Card>
+
+        <View className="gap-3">
+          {isSafeWebUrl(job.source_link) ? (
+            <Button
+              variant="accent"
+              icon="open-outline"
+              label={t("applyOnline")}
+              onPress={openSource}
+            />
+          ) : null}
+          <Button
+            icon="school"
+            label={t("startPractice")}
+            onPress={() => router.push("/practice")}
+          />
+        </View>
+      </ScrollView>
+    </View>
   );
 }

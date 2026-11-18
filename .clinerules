@@ -14,7 +14,7 @@
 - **Testing Before Proceeding:** Before marking a task as complete, verify that the code compiles. If creating a UI component, ensure all imports are present.
 
 # AI Integration
-- When writing prompts for the MiniMax m2.7 API (used for practice tests), explicitly instruct the model to output valid, parseable JSON and use simple Gujarati phrasing.
+- When writing prompts for the practice-test LLM (DeepSeek V4 Flash via the `generate-test` Edge Function), explicitly instruct the model to output valid, parseable JSON and use simple Gujarati phrasing.
 
 # Custom Skills & Commands
 You have access to custom scripts in the `scripts/` directory. You MUST use these instead of guessing terminal commands:

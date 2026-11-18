@@ -1,186 +1,223 @@
-// MiniMax AI Practice Test Generator
-// Generates AI-powered multiple choice questions using MiniMax M2.7 API
+// AI practice-test client.
+//
+// The LLM API key (Command Code / DeepSeek) lives ONLY in the `generate-test` Supabase Edge Function
+// (PRD 6.3 / 12). The app calls that function with the public anon key, so no
+// secret is ever bundled into the APK or web build.
 
-const MINIMAX_API_URL = 'https://api.minimax.chat/v1';
+import { supabase } from '../lib/supabase';
+import { readJSON, writeJSON, STORAGE_KEYS } from '../lib/storage';
+import { getBankQuestions, OptionKey, Question } from '../constants/questionBank';
+import { QUESTIONS_PER_TEST, Topic } from '../constants/testCategories';
+import type { Language } from '../constants/languages';
 
-export interface Question {
-  question: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  correct: 'A' | 'B' | 'C' | 'D';
-  explanation: string;
-}
+export type { Question, OptionKey } from '../constants/questionBank';
+
+export type TestSource = 'ai' | 'pool' | 'cache' | 'bank';
 
 export interface TestGenerationResult {
   questions: Question[];
-  language: string;
-  topic: string;
+  language: Language;
+  topic: Topic;
   generatedAt: string;
+  source: TestSource;
 }
 
-const TOPICS = {
-  en: {
-    gk: 'Indian Constitution, History, Geography and General Science',
-    math: 'Basic Arithmetic, Algebra and Geometry',
-    gujarati: 'Gujarati Grammar, Vocabulary and Comprehension',
-    english: 'Basic English Vocabulary and Grammar',
-    current: 'Current Affairs of India and Gujarat',
-  },
-  gu: {
-    gk: 'ભારતીય બંધારણ, ઈતિહાસ, ભૂગોળ અને સામાન્ય વિજ્ઞાન',
-    math: 'મૂળભૂત અંકગણિત, બીજગણિત અને ભૂમિતિ',
-    gujarati: 'ગુજરાતી વ્યાકરણ, શબ્દભંડોળ અને સમજ',
-    english: 'મૂળભૂત અંગ્રેજી શબ્દભંડોળ અને વ્યાકરણ',
-    current: 'ભારત અને ગુજરાતની વર્તમાન બાબતો',
-  },
-  hi: {
-    gk: 'भारतीय संविधान, इतिहास, भूगोल और सामान्य विज्ञान',
-    math: 'मूल अंकगणित, बीजगणित और ज्यामिति',
-    gujarati: 'गुजराती व्याकरण, शब्दभंडार और समझ',
-    english: 'बुनियादी अंग्रेजी शब्दभंडार और व्याकरण',
-    current: 'भारत और गुजरात की करंट अफेयर्स',
-  },
-};
+const OPTION_KEYS: OptionKey[] = ['A', 'B', 'C', 'D'];
+// The Edge Function fans out to parallel batches and finishes in ~20-40 s.
+const REQUEST_TIMEOUT_MS = 60_000;
+// A pool read is a single indexed query; it must never feel slow.
+const POOL_TIMEOUT_MS = 4_000;
 
-const LANGUAGE_PROMPTS = {
-  en: 'Generate questions in simple English',
-  gu: 'Generate questions in simple Gujarati using Gujarati script (ગુજરાતી લિપિ)',
-  hi: 'Generate questions in simple Hindi using Hindi script (देवनागरी लिपि)',
-};
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
 
-export async function generatePracticeTest(
-  topic: 'gk' | 'math' | 'gujarati' | 'english' | 'current',
-  language: 'en' | 'gu' | 'hi' = 'en'
-): Promise<TestGenerationResult> {
-  const apiKey = process.env.EXPO_PUBLIC_MINIMAX_API_KEY;
+/** Keeps only well-formed questions; throws if none survive. */
+export function validateQuestions(input: unknown): Question[] {
+  const list = (input as { questions?: unknown })?.questions ?? input;
+  if (!Array.isArray(list)) throw new Error('Response has no questions array');
 
-  if (!apiKey) {
-    throw new Error('MiniMax API key not configured. Set EXPO_PUBLIC_MINIMAX_API_KEY in .env');
-  }
+  const valid: Question[] = [];
+  for (const raw of list) {
+    const q = raw as Partial<Question> & { options?: Record<string, unknown> };
+    if (!q || !isNonEmptyString(q.question) || !q.options) continue;
+    if (!OPTION_KEYS.every((k) => isNonEmptyString(q.options?.[k]))) continue;
+    const correct = typeof q.correct === 'string' ? q.correct.trim().toUpperCase() : '';
+    if (!OPTION_KEYS.includes(correct as OptionKey)) continue;
 
-  const topicText = TOPICS[language][topic];
-  const langPrompt = LANGUAGE_PROMPTS[language];
-
-  const prompt = `Generate 5 multiple choice questions for competitive exams on the topic: ${topicText}.
-
-${langPrompt}
-
-Each question must have 4 options (A, B, C, D). Output ONLY valid JSON in this exact format - no additional text:
-{
-  "questions": [
-    {
-      "question": "question text here",
-      "options": {
-        "A": "option A text",
-        "B": "option B text",
-        "C": "option C text",
-        "D": "option D text"
+    valid.push({
+      question: q.question.trim(),
+      options: {
+        A: String(q.options.A).trim(),
+        B: String(q.options.B).trim(),
+        C: String(q.options.C).trim(),
+        D: String(q.options.D).trim(),
       },
-      "correct": "A",
-      "explanation": "brief explanation of why answer is correct"
-    }
-  ]
-}`;
+      correct: correct as OptionKey,
+      explanation: isNonEmptyString(q.explanation) ? q.explanation.trim() : '',
+    });
+  }
 
-  const response = await fetch(`${MINIMAX_API_URL}/text/chatcompletion_v2`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'MiniMax-Text-01',
-      messages: [
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
-    }),
+  if (valid.length === 0) throw new Error('No valid questions in response');
+  return valid;
+}
+
+/**
+ * Extracts the JSON object from raw model text: strips reasoning `<think>` blocks
+ * and markdown fences, then parses the outermost `{...}`.
+ */
+export function parseQuestions(raw: string): Question[] {
+  const text = raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/```(?:json)?/gi, '')
+    .trim();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end <= start) throw new Error('No JSON object in model output');
+  return validateQuestions(JSON.parse(text.slice(start, end + 1)));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Request timed out')), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      }
+    );
   });
+}
 
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`MiniMax API error (${response.status}): ${errorData}`);
-  }
+/** Calls the Edge Function. Throws on any network, server or validation failure. */
+export async function generatePracticeTest(
+  topic: Topic,
+  language: Language = 'en'
+): Promise<TestGenerationResult> {
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke('generate-test', {
+      body: { topic, language, count: QUESTIONS_PER_TEST },
+    }),
+    REQUEST_TIMEOUT_MS
+  );
+  if (error) throw error;
 
-  const data = await response.json();
-
-  // Parse the AI response
-  const content = data.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error('No response from MiniMax API');
-  }
-
-  // Extract JSON from response (handle potential markdown code blocks)
-  let jsonStr = content.trim();
-  if (jsonStr.startsWith('```json')) {
-    jsonStr = jsonStr.slice(7);
-  }
-  if (jsonStr.startsWith('```')) {
-    jsonStr = jsonStr.slice(3);
-  }
-  if (jsonStr.endsWith('```')) {
-    jsonStr = jsonStr.slice(0, -3);
-  }
-
-  const parsed = JSON.parse(jsonStr);
-
-  return {
-    questions: parsed.questions,
+  const questions = validateQuestions(data);
+  const result: TestGenerationResult = {
+    questions,
     language,
     topic,
     generatedAt: new Date().toISOString(),
+    source: 'ai',
+  };
+  await writeJSON(STORAGE_KEYS.testCache(topic, language), result);
+  return result;
+}
+
+export function getFallbackTest(topic: Topic, language: Language = 'en'): TestGenerationResult {
+  return {
+    questions: getBankQuestions(topic, language),
+    language,
+    topic,
+    generatedAt: new Date().toISOString(),
+    source: 'bank',
   };
 }
 
-// Fallback question bank for offline use or API failures
-export const FALLBACK_QUESTIONS: Record<string, Question[]> = {
-  gk: [
-    {
-      question: 'What is the capital of Gujarat?',
-      options: { A: 'Ahmedabad', B: ' Gandhinagar', C: 'Surat', D: 'Vadodara' },
-      correct: 'B',
-      explanation: 'Gandhinagar is the capital of Gujarat state in India.',
-    },
-    {
-      question: 'How many states are there in India?',
-      options: { A: '24', B: '28', C: '30', D: '26' },
-      correct: 'B',
-      explanation: 'India has 28 states and 8 union territories.',
-    },
-  ],
-  math: [
-    {
-      question: 'What is 15 + 27?',
-      options: { A: '41', B: '42', C: '43', D: '44' },
-      correct: 'B',
-      explanation: '15 + 27 = 42',
-    },
-    {
-      question: 'What is 8 × 7?',
-      options: { A: '54', B: '56', C: '58', D: '60' },
-      correct: 'B',
-      explanation: '8 multiplied by 7 equals 56',
-    },
-  ],
-};
+/**
+ * Reads pre-generated questions from `public.practice_questions` (migration 003) through the
+ * `get_practice_questions` RPC. A daily generator fills that pool, so this path answers in
+ * well under a second and costs no LLM credit. Returns null when the pool is unreachable or
+ * too thin to make a full test, so the caller can fall through to the AI path.
+ */
+export async function loadPoolTest(
+  topic: Topic,
+  language: Language
+): Promise<TestGenerationResult | null> {
+  try {
+    // PostgREST builders are thenable but not Promise instances, so wrap the call itself.
+    const { data, error } = await withTimeout(
+      Promise.resolve(
+        supabase.rpc('get_practice_questions', {
+          p_topic: topic,
+          p_language: language,
+          p_count: QUESTIONS_PER_TEST,
+        })
+      ),
+      POOL_TIMEOUT_MS
+    );
+    if (error || !Array.isArray(data)) return null;
 
-export function getFallbackTest(
-  topic: 'gk' | 'math' | 'gujarati' | 'english' | 'current'
-): TestGenerationResult {
-  const questions = FALLBACK_QUESTIONS[topic] || FALLBACK_QUESTIONS.gk;
-  return {
-    questions,
-    language: 'en',
-    topic,
-    generatedAt: new Date().toISOString(),
-  };
+    const rows = data as {
+      question: string;
+      options: Record<string, string>;
+      correct: string;
+      explanation: string | null;
+    }[];
+    // A short pool would give a 3-question "test"; require the full length.
+    if (rows.length < QUESTIONS_PER_TEST) return null;
+
+    const questions = validateQuestions(
+      rows.map((r) => ({
+        question: r.question,
+        options: r.options,
+        correct: r.correct,
+        explanation: r.explanation ?? '',
+      }))
+    );
+    return {
+      questions: questions.slice(0, QUESTIONS_PER_TEST),
+      language,
+      topic,
+      generatedAt: new Date().toISOString(),
+      source: 'pool',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Offline-first loader (PRD 6.4), fastest source first:
+ *   1. practice_questions pool  -> instant, no LLM cost
+ *   2. fresh AI test            -> Edge Function, ~20-40 s
+ *   3. last cached AI test
+ *   4. built-in offline bank
+ * Never throws.
+ */
+export async function loadPracticeTest(
+  topic: Topic,
+  language: Language,
+  generate: typeof generatePracticeTest = generatePracticeTest,
+  readPool: typeof loadPoolTest = loadPoolTest
+): Promise<TestGenerationResult> {
+  const pooled = await readPool(topic, language);
+  if (pooled) return pooled;
+
+  try {
+    return await generate(topic, language);
+  } catch (err) {
+    console.warn('AI test generation failed, using offline questions:', err);
+  }
+
+  const cached = await readJSON<TestGenerationResult | null>(
+    STORAGE_KEYS.testCache(topic, language),
+    null
+  );
+  if (cached) {
+    try {
+      return { ...cached, questions: validateQuestions(cached.questions), source: 'cache' };
+    } catch {
+      // Corrupt cache - fall through to the bank.
+    }
+  }
+  return getFallbackTest(topic, language);
+}
+
+export function scoreTest(questions: Question[], answers: Record<number, OptionKey>): number {
+  return questions.reduce((sum, q, i) => (answers[i] === q.correct ? sum + 1 : sum), 0);
 }

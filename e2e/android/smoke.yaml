@@ -1,0 +1,34 @@
+# Native Android smoke test (Maestro). Runs on an emulator with no human input.
+# Mirrors scripts/e2e-web.sh so web and native stay covered by the same checks.
+#
+# Requires a reachable Supabase project for the live-data steps. The CI job starts the local
+# stack (scripts/local-supabase.sh) and points the build at it; see .github/workflows/ci-cd.yml.
+appId: com.rojgarmitra.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Rojgar Mitra"
+    timeout: 60000
+- assertVisible: "What do you want to do?"
+- assertVisible: "Latest Jobs"
+# Live data: at least one job card from the scraped listing must render, not the empty state.
+- extendedWaitUntil:
+    visible: "Last Date"
+    timeout: 30000
+- tapOn: "Jobs"
+- assertVisible: "All Jobs"
+- tapOn: "Practice"
+- assertVisible: "Practice Test"
+# Start a real test from the pool and confirm the first question renders.
+- tapOn:
+    text: "General Knowledge, 10 questions"
+- extendedWaitUntil:
+    visible: "Question 1 of 10"
+    timeout: 60000
+- tapOn: "Back"
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- assertVisible: "Language"
+- tapOn: "Home"
+- assertVisible: "What do you want to do?"
