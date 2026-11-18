@@ -99,6 +99,8 @@ Confirmed functionality:
   registration-is-not-an-application trap marked and the exact photo/signature upload limits.
 - **Local application tracking**: mark a notice applied, keep its confirmation number, and see
   the reader's own list including notices whose deadline has passed.
+- **"New since your last visit"**: the count of notices that appeared since the previous
+  session, so a daily reader does not re-scan the whole list.
 - Practice tests over six topics in three languages. The question pool is read first, AI
   generation second, cache third, an offline bank last.
 - Study material: practice links, official PDFs, videos and official websites.

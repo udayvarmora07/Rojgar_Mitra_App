@@ -164,14 +164,23 @@ required education?" without being shown which education. That was tolerable whe
 (`YesNoQuestion` gained a `detail` prop, `eligRequirement` names the pair). Nothing is shown
 when the notice does not state a value — it never invents a requirement.
 
+### "New since your last visit" (Home)
+
+The audience research says a reader opens the app most days to see what has appeared, but the
+list was undifferentiated every visit. `lib/seenJobs.ts` stores the ids shown at the end of the
+previous visit and reports the difference; Home shows one line and nothing on a first visit.
+Ids rather than a timestamp because a notice can be edited without `created_at` moving. The
+marker advances on losing focus, so a notice arriving while the reader is looking is not
+consumed. 9 tests.
+
 ### Verified in this session
 
 | Gate | Command | Result |
 |---|---|---|
 | Types | `npm run typecheck` | exit 0 |
 | Lint | `npm run lint` | exit 0, zero warnings |
-| Jest | `NODE_ENV=test npx jest` | **15 suites, 136 tests pass** |
-| Rust | `cargo test --locked` | **30 tests** |
+| Jest | `NODE_ENV=test npx jest` | **16 suites, 145 tests pass** |
+| Rust | `cargo test --locked` | **34 tests** |
 | Rust lint | `cargo clippy --locked -- -D warnings` | clean |
 | Python scraper | `unittest discover -s scraper` | **14 tests** |
 | Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass, **now covering the guide (incl. its axe audit) and applications screens** |
