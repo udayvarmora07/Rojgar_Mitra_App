@@ -173,13 +173,35 @@ Ids rather than a timestamp because a notice can be edited without `created_at` 
 marker advances on losing focus, so a notice arriving while the reader is looking is not
 consumed. 9 tests.
 
+### Impeccable and opencli: both done
+
+**`PRODUCT.md` is now on the Impeccable schema.** It carried no
+`<!-- impeccable:product-schema 1 -->` marker and only free-form headings, so `impeccable
+context` reported `"platform": null` and its directives could not load the native platform
+guidance. The file was restructured into the schema's sections (Platform, Users, Product
+Purpose, Positioning, Operating Context, Capabilities and Constraints, Brand Commitments,
+Evidence on Hand, Product Principles, Accessibility & Inclusion) with every measured fact
+preserved; the visual material it duplicated (reference evidence, the redesign audit) moved
+into `DESIGN.md` §2 where it belongs. `impeccable context` now resolves
+**`"platform": "adaptive"`**.
+
+The Positioning claim was the one fact the file never stated. It is now recorded as: most
+Gujarat job boards are search results, while this is a notice ledger, and the mechanism a
+neighbouring product could not truthfully copy is the derivation — `education_level` computed
+from raw qualification text by a database trigger.
+
+**opencli's extension is connected.** `opencli doctor`: `extensionConnected: true`,
+extension 1.0.27. It is installed in Chrome profile `Profile 5` and dials out to the daemon
+on `ws://127.0.0.1:19825/ext`, so it only connects while a Chrome window is open **on that
+profile**.
+
 ### Verified in this session
 
 | Gate | Command | Result |
 |---|---|---|
 | Types | `npm run typecheck` | exit 0 |
 | Lint | `npm run lint` | exit 0, zero warnings |
-| Jest | `NODE_ENV=test npx jest` | **16 suites, 145 tests pass** |
+| Jest | `NODE_ENV=test npx jest` | **16 suites, 146 tests pass** |
 | Rust | `cargo test --locked` | **34 tests** |
 | Rust lint | `cargo clippy --locked -- -D warnings` | clean |
 | Python scraper | `unittest discover -s scraper` | **14 tests** |
