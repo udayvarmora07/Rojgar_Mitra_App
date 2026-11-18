@@ -140,13 +140,15 @@ that flake without hiding a real hang. Keep it.
 | AI generation | 10 Gujarati questions end to end | **8–10 questions in 38–53 s** |
 | Web bundle | `expo export` | **2.1 MB** (was 6.1 MB) |
 | Design scanner | `devibe_scan.py .` | vibe score **0**, **0 findings** (the one status pill is `unslop-ignore`d) |
+| CI pipeline | push to `main` → run **44260341635** | **all 5 jobs success**: app, scraper, web, live gates, Android |
+| Android E2E | Maestro smoke, API 34 emulator | **pass**, 17m38s: live cards, four tabs, 10-question pool test |
 
 ### Fixes that matter (with evidence, so they are not undone)
 
 1. **`generate-test` used to always fail.** One call asking for 10 questions exceeded the 55 s
    timeout every time (measured: HTTP 502 at exactly 55.00 s), so users always fell back to the
-   offline bank. It now fans out to parallel 2-question batches with top-up rounds:
-   **10 questions in ~48 s**.
+   offline bank. It now fans out to parallel 2-question batches and tops up as results arrive:
+   **8–10 questions in 38–53 s**.
 2. **The practice pool was never read.** `practice_questions` + `get_practice_questions` existed
    but nothing called them. `loadPracticeTest` now goes pool → AI → cache → offline bank, so a
    normal test is instant and costs no LLM credit.
@@ -159,7 +161,16 @@ that flake without hiding a real hang. Keep it.
 5. **Scrapers wired into CI.** `daily-scraper.yml` runs the Rust scraper (cargo test, clippy,
    release build, run) with the Python parser tests kept as a non-blocking parity job.
 6. **Three live sources instead of one.** OJAS + GPSC + FreeJobAlert (the last adds vacancies,
-   qualification and advertisement number), 105 advertisements in total.
+   qualification and advertisement number); the 2026-11-18 hosted run inserted **94**.
+7. **Android E2E was silently testing nothing.** `assembleDebug` waits for Metro, which is not
+   running on a CI runner, so the app never rendered. The job now builds `assembleRelease` (the
+   Expo template signs it with the debug keystore and embeds the JS bundle), sets
+   `hide_error_dialogs 1` to keep the emulator's launcher ANR off the screen, and uses a regex
+   for the date because Maestro matches a whole text node: `.*Last Date.*`. Run **44260341635**
+   passed in 17m38s.
+8. **CI runs the real gates.** `app-checks` (typecheck/lint/Jest), `live-gates` (hosted
+   PostgREST/RLS/pool/Edge contract, web E2E, four-tab axe), `build-web`, `scraper-tests` and
+   `android-e2e` all ran green on `main` in run **44260341635**.
 
 ---
 
@@ -259,12 +270,14 @@ GPRB, Gujarat High Court, SPIPA. GSSSB additionally needs a JS POST with an anti
    box ("Documents" measures 102.4 px at 18 px bold), and a fixed 54 px two-line slot keeps the
    icons on one baseline. Verified by screenshot at 390×844 in all three languages; tests in
    `__tests__/homeTiles.test.tsx`.
-3. **CI real gates — DONE in the workflow.** `app-checks` runs typecheck, lint and Jest;
-   `live-gates` runs `verify-live-data.sh` (SKIP_LLM=1), `e2e-web.sh` and `a11y-audit.sh` against
-   the hosted project. Not yet observed on GitHub because nothing has been pushed.
-4. **`android-e2e` — READY, NOT RUN.** It now builds against the hosted project through the
-   `EXPO_PUBLIC_*` secrets (no local stack), and the pool has 10+ English GK questions for the
-   Maestro flow. It still needs a **branch push**, which requires the owner's approval.
+3. **CI real gates — DONE and observed.** Run **44260341635** on `main`: `app-checks`
+   (typecheck/lint/Jest), `scraper-tests`, `build-web`, `live-gates` (hosted PostgREST/RLS/pool/
+   Edge contract, web E2E, four-tab axe) and `android-e2e` all **success**. The Gradle cache
+   (1.37 GiB) is saved for later runs.
+4. **`android-e2e` — DONE and observed.** It builds a release APK against the hosted project and
+   passed in **17m38s** in run 44260341635: live cards, the four tabs, and a 10-question pool
+   test on an API 34 emulator. The release-APK, `hide_error_dialogs` and regex fixes are recorded
+   in §5.
 5. **`LLM_API_KEY` — DONE.** Set on `wiyryfopgjdzirndyxzp`; `generate-test` is deployed and real
    calls return 8–10 valid questions in 38–53 s. The key is never printed and never carries an
    `EXPO_PUBLIC_` prefix.
