@@ -22,11 +22,12 @@ appId: com.rojgarmitra.app
 - assertVisible: "All Jobs"
 - tapOn: "Practice"
 - assertVisible: "Practice Test"
-# Start a real test from the pool and confirm the first question renders.
+# Start a real test from the pool and confirm the first question renders. The pool may return
+# 6-10 questions after the display-length filter, so neither the label nor the total is fixed.
 - tapOn:
-    text: "General Knowledge, 10 questions"
+    text: ".*General Knowledge.*"
 - extendedWaitUntil:
-    visible: "Question 1 of 10"
+    visible: "Question 1 of .*"
     timeout: 60000
 - tapOn: "Back"
 - tapOn: "Settings"
