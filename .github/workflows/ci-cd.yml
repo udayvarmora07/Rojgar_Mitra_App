@@ -158,6 +158,15 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
       - name: Build release APK
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
@@ -169,6 +178,10 @@ jobs:
           test -n "$RUNNER" || { echo "maestro-runner not found after install"; exit 1; }
           echo "$(dirname "$RUNNER")" >> "$GITHUB_PATH"
 
+      # The emulator action passes each script line to `sh -c`, so this must stay one line
+      # per command — a multi-line `|| { ... }` block is a syntax error there.
+      # A release APK embeds the JS bundle; a debug APK would wait for Metro, which is not
+      # running on the runner, and never render the app.
       - name: Run Android emulator and smoke flow
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
@@ -177,15 +190,8 @@ jobs:
           arch: x86_64
           profile: pixel_6
           script: |
-            # A release APK embeds the JS bundle; a debug APK would wait for Metro, which
-            # is not running on the runner, and never render the app.
             adb install -r android/app/build/outputs/apk/release/app-release.apk
-            maestro-runner test e2e/android/smoke.yaml || {
-              echo "::group::logcat"
-              adb logcat -d | tail -200
-              echo "::endgroup::"
-              exit 1
-            }
+            maestro-runner test e2e/android/smoke.yaml; STATUS=$?; if [ $STATUS -ne 0 ]; then adb logcat -d | tail -200; exit $STATUS; fi
 
       - name: Upload Maestro report on failure
         if: failure()
