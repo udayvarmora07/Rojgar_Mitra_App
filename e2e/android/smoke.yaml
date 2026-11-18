@@ -13,8 +13,10 @@ appId: com.rojgarmitra.app
 - assertVisible: "What do you want to do?"
 - assertVisible: "Latest Jobs"
 # Live data: at least one job card from the scraped listing must render, not the empty state.
+# Maestro matches the whole text node exactly, and the card renders "Last Date: 18 Nov 2026"
+# as one node, so this needs a regex rather than the bare prefix.
 - extendedWaitUntil:
-    visible: "Last Date"
+    visible: ".*Last Date.*"
     timeout: 30000
 - tapOn: "Jobs"
 - assertVisible: "All Jobs"
