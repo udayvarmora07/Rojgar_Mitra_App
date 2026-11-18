@@ -158,9 +158,9 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Install maestro-runner
         run: |
@@ -177,5 +177,20 @@ jobs:
           arch: x86_64
           profile: pixel_6
           script: |
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            maestro-runner test e2e/android/smoke.yaml
+            # A release APK embeds the JS bundle; a debug APK would wait for Metro, which
+            # is not running on the runner, and never render the app.
+            adb install -r android/app/build/outputs/apk/release/app-release.apk
+            maestro-runner test e2e/android/smoke.yaml || {
+              echo "::group::logcat"
+              adb logcat -d | tail -200
+              echo "::endgroup::"
+              exit 1
+            }
+
+      - name: Upload Maestro report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report
+          path: reports/
+          if-no-files-found: ignore
