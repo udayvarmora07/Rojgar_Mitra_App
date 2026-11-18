@@ -22,7 +22,85 @@ editorial page, a gradient hero, or a card for every sentence.
 
 ---
 
-## 2. Tokens
+## 2. Reference evidence
+
+Captured at `design/references/`; measured from published tokens where a value is quoted.
+
+### The authority: UX4G
+
+`ux4g.gov.in` — the Government of India design system from MeitY, built for government
+services, shipping with GIGW 3.0 accessibility baked in. Captured at
+`design/references/ref-www-ux4g-gov-in.png`.
+
+| Token | Value | Measured |
+|---|---|---|
+| Brand purple (primary-600) | `#4A2BC2` | 8.69:1 on white |
+| Neutral-900 (primary text) | `#171717` | 19.0:1 on white |
+| Neutral-700 (secondary text) | `#404040` | 10.37:1 on white |
+| Neutral-50 (surface) | `#FAFAFA` | — |
+| Error-800 (danger text) | `#8A1A16` | 8.94:1 on error-50 |
+| Success-800 | `#00522C` | 8.89:1 on success-50 |
+
+Its guidance is explicit: *"Use Purple (#4a2bc2) on white for body text — 16.75:1"*, and
+*"Don't use Saffron for body text (insufficient contrast)"*. Its card treatment is a white
+surface on a near-white page, one hairline border, generous internal padding, and a soft
+lavender tint for illustration areas — not gradients or glass.
+
+**Why we follow it rather than an award-winning site:** this is a government-services app for
+citizens with low digital confidence. Familiarity *is* trust. A citizen who has used UMANG or
+DigiLocker should recognise the grammar of this app immediately.
+
+### The audience's real apps: UMANG
+
+Captured at `design/references/ref-umang-gov-in.png`. Government blue header with the emblem,
+an enormous illustrated banner, four big labelled icon tiles (*Departments, Services,
+Registrations, Transactions*) carrying the entire navigation, and an accessibility/ISL/language
+cluster in the top bar. The lesson: **big icon-plus-label targets as primary navigation,
+visible language switching, and nothing hidden behind a gesture.**
+
+### The screen we must not become: FreeJobAlert
+
+Captured at `design/references/ref-www-freejobalert-com.png` — the deep-scroll view of the very
+listing our scraper reads. Ten columns of 12px text, colour-coded borders, no hierarchy, no
+touch targets, no whitespace. It is information-rich and unusable on a phone in sunlight. It is
+also our data source, which is the whole opportunity: **we present the same advertisements as
+a scannable notice list that a low-literacy reader can act on.**
+
+### The adjacent job-app grammar
+
+The iOS job-app listing reviewed for this pass (Indeed) confirms the useful constants: a job
+card leads with title and employer, one meta line carries the practical facts, and the primary
+action is always visible. It also confirms what not to import: marketplace chrome, saved-search
+widgets, resume funnels, and dense salary filters that this audience does not need. Our
+difference is the date stub and the stamped status, which make the deadline the first thing the
+eye lands on.
+
+### Sources that failed to yield evidence
+
+`ojas.gujarat.gov.in` serves a CAPTCHA wall to automated browsers (captured, unusable);
+`naukri.com` returns "Access Denied" to this network. Recorded so the gap is honest.
+
+### The redesign audit
+
+The system replaced in 2026-11-18 was *consistent* — one navy, one green, one radius, 18px
+body, 0 critical/serious axe findings — but not *distinctive or effortless*. What the audit of
+that build found, and what replaced it:
+
+| Finding | Evidence | Decision |
+|---|---|---|
+| A generic Tailwind card stack: white cards on grey, left colour border, everything the same weight | Home, Jobs, Job detail | Replace the card grammar with a notice grammar: date stub, stamp, ruled field rows |
+| The live count was absent from the first viewport | Home | Put the number of open notices inside the primary action, in mono |
+| Status was a rounded pill and colour did much of the work | `DeadlineBadge` | Rectangular stamp with an uppercase label and a countdown; words first |
+| Department filters sprawled into a 50-chip scroller | Jobs | A searchable bottom sheet with counts and a pinned action |
+| The detail screen repeated the department in the masthead and again in the card | Job detail | A `NOTICE` kicker; department lives once |
+| An icon-only, above-the-fold Apply action was below three cards of facts | Job detail | A sticky Apply bar at the bottom edge |
+| No data face: dates, counts and scores were set in body sans | Everywhere | A mono face for measurements only |
+| The launcher icon and splash were the Expo placeholder | `assets/` | A navy notice-stamp mark: white frame, RM monogram, vermilion rule |
+| Desktop stretched the phone layout across the window | Web | A 600px column, centred, with a centred tab bar |
+
+---
+
+## 3. Tokens
 
 All colour values live in `design/tokens.json`. `tailwind.config.js` and `constants/theme.ts`
 both read that file, so a class and an icon colour cannot drift.
@@ -89,7 +167,7 @@ unit (`6 posts`, `0/10`).
 
 ---
 
-## 3. Component grammar
+## 4. Component grammar
 
 ### Masthead
 Deep navy field, safe-area top, an RM monogram in a hairline frame, a tracked kicker, the
@@ -181,7 +259,7 @@ above a filled icon; inactive tabs are `ink-mute` outlines. The bar is centred a
 
 ---
 
-## 4. Screen composition
+## 5. Screen composition
 
 - **Home** — masthead → "What do you want to do?" → live primary jobs action → Practice and
   Documents peers → "Browse by category" index card (education levels with counts, then all
@@ -205,7 +283,7 @@ above a filled icon; inactive tabs are `ink-mute` outlines. The bar is centred a
 
 ---
 
-## 5. Motion
+## 6. Motion
 
 Almost none, deliberately. A 150ms opacity response on press is the whole vocabulary.
 No list entry animations, no parallax, no shimmer, no decorative transitions. The date stub
@@ -213,7 +291,7 @@ and stamp carry the personality statically. Motion on a mid-range phone is delay
 
 ---
 
-## 6. Accessibility contract (gates)
+## 7. Accessibility contract (gates)
 
 - `bash scripts/a11y-audit.sh`: 0 critical, 0 serious on Home / Jobs / Practice / Settings.
 - `bash scripts/e2e-web.sh`: live data, four tabs, axe on home.
@@ -223,14 +301,14 @@ and stamp carry the personality statically. Motion on a mid-range phone is delay
 - The language control has an explicit accessible name; the switch exposes checked state.
 - `npm run typecheck`, `npm run lint`, `NODE_ENV=test npx jest` stay green.
 
-## 7. Platform
+## 8. Platform
 
 Adaptive: Expo SDK 54 / React Native 0.81 on iOS and Android, with a web preview. The design
 is phone-first and constrained to a 600px column on wide screens. Safe areas are handled by
 the masthead and sticky bars. Native stack/tab gestures remain intact; the custom masthead is
 a deliberate brand surface, not a replacement for the navigation back behaviour.
 
-## 8. Source map
+## 9. Source map
 
 | Concern | Location |
 |---|---|
@@ -241,22 +319,28 @@ a deliberate brand surface, not a replacement for the navigation back behaviour.
 | Date stub, stamp, job card | `components/jobs/DateStub.tsx`, `ui/Stamp.tsx`, `jobs/JobCard.tsx` |
 | Category shortcuts | `components/jobs/CategoryBoard.tsx` |
 | Study-material row | `components/resources/ResourceRow.tsx` |
+| Applied tracker (job detail) | `components/jobs/ApplyTracker.tsx` |
 | Language control | `components/ui/LanguagePicker.tsx` |
 | States | `components/ui/States.tsx`, `ProgressBar.tsx` |
-| Screens | `app/(tabs)/*`, `app/job/[id].tsx`, `app/resources.tsx`, `app/practice/test/[category].tsx`, `app/documents/*`, `app/eligibility/[jobId].tsx` |
+| Screens | `app/(tabs)/*`, `app/job/[id].tsx`, `app/guide.tsx`, `app/applications.tsx`, `app/resources.tsx`, `app/practice/test/[category].tsx`, `app/documents/*`, `app/eligibility/[jobId].tsx` |
 | App icon, adaptive icon, splash, favicon | `assets/` + `app.json` |
 
-## 9. Do / don't
+## 10. Do / don't
 
 **Do** lead with the date and the status; write labels as words; use mono for numbers; keep
 one primary action per view; group with space and hairlines; use the stamp for state; leave
-the rest of the screen quiet.
+the rest of the screen quiet. A screen made only of static text needs `tabIndex={0}` on its
+scroll container, or a keyboard user cannot scroll it at all (axe `scrollable-region-focusable`,
+serious).
 
 **Don't** add a gradient, a shadow stack, an emoji icon, a row of action pills, a card inside
 a card, a second accent hue, a decorative eyebrow, or a webfont. Don't hide a primary action
-under a long scroller; pin it. Don't put the count only in colour; write it.
+under a long scroller; pin it. Don't put the count only in colour; write it. Don't convey a
+verdict (correct/wrong, applied/not applied) with tint alone — write it, and put it in the
+accessible name.
 
 ---
 
-*Measured on 2026-11-18 against the hosted project (94 live job advertisements). Screenshots:
-`design/references/app-*-redesign.png`.*
+*Measured on 2026-11-19 against the hosted project (87 live job advertisements). Screenshots:
+`design/references/app-*-redesign.png` at 390×844, plus native emulator captures
+(`app-guide-native.png`, `app-applied-native.png`, `app-detail-eligibility-native.png`).*

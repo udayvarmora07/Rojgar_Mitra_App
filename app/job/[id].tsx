@@ -27,6 +27,7 @@ import { Fact } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState, Footnote, LoadingState } from '../../components/ui/States';
 import { DeadlineBadge } from '../../components/jobs/DeadlineBadge';
+import { ApplyTracker } from '../../components/jobs/ApplyTracker';
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -222,6 +223,29 @@ export default function JobDetailScreen() {
           />
         </View>
 
+        {/* The most common way a candidate loses a post is believing OTR = applied. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t('applyGuide')}. ${t('applyGuideHint')}`}
+          onPress={() => router.push('/guide')}
+          style={curve}
+          className="bg-card border border-rule rounded-card p-4 flex-row items-center mt-3 active:opacity-80"
+        >
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={curve}
+            className="w-10 h-10 rounded-control border border-navy-line bg-navy-tint items-center justify-center"
+          >
+            <Ionicons name="reader-outline" size={22} color={palette.navy} />
+          </View>
+          <View className="flex-1 ml-3 pr-2">
+            <Text className="text-body font-bold text-ink">{t('applyGuide')}</Text>
+            <Text className="text-label text-ink-soft mt-0.5">{t('applyGuideHint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+        </Pressable>
+
         <SectionHeading title={t('studyMaterial')} />
         <Pressable
           accessibilityRole="button"
@@ -281,6 +305,10 @@ export default function JobDetailScreen() {
         </Pressable>
 
         <Footnote>{t('officialNote')}</Footnote>
+
+        {/* Placed last in reading order, immediately above the sticky Apply bar, because it is
+            the step the reader takes right after returning from the official website. */}
+        <ApplyTracker job={job} />
       </ScrollView>
 
       <View

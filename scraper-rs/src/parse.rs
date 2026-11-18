@@ -122,6 +122,38 @@ pub fn ojas_home(html: &str, base: &str, today: &str) -> Vec<Job> {
 /// `Job Location | Surat` from a FreeJobAlert article page. Listing rows do not carry a
 /// location, so the scraper fetches the article for new rows and reads this table.
 pub fn freejobalert_location(html: &str) -> Option<String> {
+    freejobalert_field(html, &["job location", "location"])
+}
+
+/// The pay stated on a FreeJobAlert article, e.g. `Rs. 67,700 to Rs. 1,18,500`.
+///
+/// The listing table has no salary column, so this is only available on the article page the
+/// scraper already fetches for the location. Both `Pay` and `Salary` are used across articles.
+pub fn freejobalert_salary(html: &str) -> Option<String> {
+    freejobalert_field(html, &["pay", "salary", "pay scale", "salary details"])
+}
+
+/// The age limit stated on a FreeJobAlert article, e.g. `18 to 38 years`.
+pub fn freejobalert_age_limit(html: &str) -> Option<String> {
+    freejobalert_field(html, &["age limit", "age"])
+}
+
+/// The application fee stated on a FreeJobAlert article, e.g. `Rs. 100 for General`.
+pub fn freejobalert_fee(html: &str) -> Option<String> {
+    freejobalert_field(html, &["application fee", "fee", "examination fee"])
+}
+
+/// The qualification stated on a FreeJobAlert article, used to fill `job_details`.
+pub fn freejobalert_qualification(html: &str) -> Option<String> {
+    freejobalert_field(html, &["qualification", "educational qualification"])
+}
+
+/// Reads the second cell of the table row whose first cell matches one of `labels`.
+///
+/// Articles render each fact as its own two-cell row, so one helper serves every field.
+/// A prefix match is allowed for labels like `Job Location` when the cell carries extra text,
+/// but the match is anchored at the start so `Age` cannot match `Language`.
+fn freejobalert_field(html: &str, labels: &[&str]) -> Option<String> {
     let document = Html::parse_document(html);
     let tr_sel = Selector::parse("tr").expect("static selector");
     let td_sel = Selector::parse("td").expect("static selector");
@@ -132,7 +164,10 @@ pub fn freejobalert_location(html: &str) -> Option<String> {
             continue;
         }
         let label = cells[0].to_lowercase();
-        if label == "job location" || label == "location" || label.starts_with("job location") {
+        let matches = labels
+            .iter()
+            .any(|want| label == *want || label.starts_with(&format!("{want} ")));
+        if matches {
             return placeholder_to_none(&cells[1]);
         }
     }
@@ -358,6 +393,19 @@ mod tests {
     </table>
     <div class="widget"><h3>JOBS BY LOCATION</h3><a href="/surat-jobs">Surat jobs</a></div>"#;
 
+    /// The real article shape, verified against a live ESIC Ahmedabad page: each fact is its
+    /// own two-cell row, and pay is labelled `Pay` rather than `Salary`.
+    const FJA_FULL_ARTICLE: &str = r#"
+    <table>
+      <tr><td>Walk-in Date</td><td>27 November 2026</td></tr>
+      <tr><td>Organisation</td><td>ESIC Medical College Ahmedabad</td></tr>
+      <tr><td>Job Location</td><td>Gujarat</td></tr>
+      <tr><td>Job Type</td><td>Contract</td></tr>
+      <tr><td>Pay</td><td>Rs. 67,700 to Rs. 1,18,500, depending on the post</td></tr>
+      <tr><td>Age Limit</td><td>18 to 38 years</td></tr>
+      <tr><td>Qualification</td><td>MBBS / MD / MS / DNB</td></tr>
+    </table>"#;
+
     #[test]
     fn ojas_parses_org_title_deadline_and_absolute_link() {
         let jobs = ojas_home(OJAS_HTML, "https://ojas.gujarat.gov.in/", TODAY);
@@ -413,6 +461,48 @@ mod tests {
         let jobs = freejobalert_gujarat(FJA_HTML, "https://www.freejobalert.com/gujarat-government-jobs/", TODAY);
         assert_eq!(jobs[1].advertisement_no, None);
         assert_eq!(jobs[1].vacancies, Some(31));
+    }
+
+    #[test]
+    fn freejobalert_reads_pay_from_the_article_page() {
+        assert_eq!(
+            freejobalert_salary(FJA_FULL_ARTICLE).as_deref(),
+            Some("Rs. 67,700 to Rs. 1,18,500, depending on the post")
+        );
+    }
+
+    #[test]
+    fn freejobalert_reads_location_and_age_from_the_same_page() {
+        assert_eq!(freejobalert_location(FJA_FULL_ARTICLE).as_deref(), Some("Gujarat"));
+        assert_eq!(freejobalert_age_limit(FJA_FULL_ARTICLE).as_deref(), Some("18 to 38 years"));
+    }
+
+    #[test]
+    fn freejobalert_accepts_salary_label_as_well_as_pay() {
+        let html = "<table><tr><td>Salary</td><td>Rs. 25,500</td></tr></table>";
+        assert_eq!(freejobalert_salary(html).as_deref(), Some("Rs. 25,500"));
+    }
+
+    /// A prefix match must be anchored: `Age` cannot match a `Language` row, and a `Pay` row
+    /// cannot match `Pay Scale` text from a neighbouring cell.
+    #[test]
+    fn freejobalert_field_match_is_anchored_at_the_label() {
+        let html = "<table><tr><td>Language</td><td>Gujarati</td></tr>\
+                    <tr><td>Payment Mode</td><td>Online</td></tr></table>";
+        assert_eq!(freejobalert_age_limit(html), None);
+        assert_eq!(freejobalert_salary(html), None);
+    }
+
+    #[test]
+    fn freejobalert_salary_ignores_a_dash_placeholder() {
+        let html = "<table><tr><td>Pay</td><td>–</td></tr></table>";
+        assert_eq!(freejobalert_salary(html), None);
+    }
+
+    #[test]
+    fn location_only_article_still_yields_no_salary() {
+        assert_eq!(freejobalert_location(FJA_ARTICLE_HTML).as_deref(), Some("Surat"));
+        assert_eq!(freejobalert_salary(FJA_ARTICLE_HTML), None);
     }
 
     #[test]

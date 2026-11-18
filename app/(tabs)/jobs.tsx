@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { useJobs } from '../../hooks/useJobs';
@@ -19,6 +19,7 @@ import {
   listDepartments,
   NO_FILTERS,
   JobFilters,
+  splitByApplied,
 } from '../../lib/jobsFilter';
 import {
   EDUCATION_LEVELS,
@@ -37,6 +38,7 @@ import { Screen } from '../../components/ui/Screen';
 import { useLanguage } from '../../hooks/useLanguage';
 import { openExternalLink } from '../../lib/externalLink';
 import { isSafeWebUrl } from '../../lib/url';
+import { loadApplications, type ApplicationMap } from '../../lib/applications';
 import { curve, palette } from '../../constants/theme';
 
 export default function JobsScreen() {
@@ -56,7 +58,21 @@ export default function JobsScreen() {
   }));
   const [sheetOpen, setSheetOpen] = useState(params.filters === '1');
   const [departmentQuery, setDepartmentQuery] = useState('');
+  const [applications, setApplications] = useState<ApplicationMap>({});
   const { language } = useLanguage();
+
+  // Which notices the reader has marked applied. Re-read on focus because the mark is made
+  // on the detail screen and this is a tab that stays mounted.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      loadApplications().then((map) => active && setApplications(map));
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+  const appliedIds = useMemo(() => new Set(Object.keys(applications)), [applications]);
 
   // PRD 5.2: Apply is available straight from the list, not only on the detail screen.
   const applyToJob = useCallback(
@@ -84,6 +100,12 @@ export default function JobsScreen() {
 
   const live = useMemo(() => filterJobs(jobs, NO_FILTERS), [jobs]);
   const visible = useMemo(() => filterJobs(jobs, filters), [jobs, filters]);
+  // A dedicated applied list: a notice the reader submitted is theirs to watch even if it has
+  // scrolled far down the deadline order.
+  const appliedJobs = useMemo(
+    () => splitByApplied(visible, appliedIds).applied,
+    [visible, appliedIds]
+  );
   const departments = useMemo(() => listDepartments(jobs, language), [jobs, language]);
   const educationCounts = useMemo(() => countByEducationLevel(live), [live]);
   const departmentCounts = useMemo(() => {
@@ -200,6 +222,26 @@ export default function JobsScreen() {
         ListHeaderComponent={
           <View>
             {offline && jobs.length > 0 ? <Banner text={t('offlineBanner')} /> : null}
+            {appliedJobs.length > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${t('applicationsTitle')}. ${t(
+                  'appliedFilter'
+                )}: ${appliedJobs.length}`}
+                onPress={() => router.push('/applications')}
+                style={curve}
+                className="bg-open-bg border border-open-border rounded-card p-4 mb-3 flex-row items-center active:opacity-80"
+              >
+                <Ionicons name="checkmark-circle" size={22} color={palette.success} />
+                <View className="flex-1 ml-2.5">
+                  <Text className="text-body font-bold text-ink">{t('applicationsTitle')}</Text>
+                  <Text className="text-label text-ink-soft mt-0.5">
+                    {t('jobsCount', { count: appliedJobs.length })}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+              </Pressable>
+            ) : null}
             <View className="flex-row items-center justify-between mb-3">
               <Text className="text-label text-ink-mute">{t('sortedByLastDate')}</Text>
               {hasFilters ? (
@@ -217,6 +259,7 @@ export default function JobsScreen() {
         renderItem={({ item }) => (
           <JobCard
             job={item}
+            applied={appliedIds.has(item.id)}
             onPress={() => router.push(`/job/${item.id}`)}
             onApply={
               isSafeWebUrl(item.source_link) ? () => applyToJob(item.source_link) : undefined

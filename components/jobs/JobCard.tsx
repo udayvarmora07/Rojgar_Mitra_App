@@ -25,10 +25,13 @@ export function JobCard({
   job,
   onPress,
   onApply,
+  applied = false,
 }: {
   job: Job;
   onPress: () => void;
   onApply?: () => void;
+  /** The reader marked this notice as submitted. Shown as a stamp, never colour alone. */
+  applied?: boolean;
 }) {
   const { t } = useTranslation();
   const { language } = useLanguage();
@@ -38,7 +41,6 @@ export function JobCard({
   const meta = [
     job.vacancies != null ? t('vacancyCount', { count: job.vacancies }) : null,
     job.qualification ?? null,
-    job.salary ?? null,
   ].filter(Boolean);
 
   const countdown =
@@ -57,7 +59,7 @@ export function JobCard({
         accessibilityLabel={`${job.title}, ${job.department}, ${t('lastDate')} ${formatDate(
           job.deadline,
           language
-        )}`}
+        )}${applied ? `, ${t('appliedStamp')}` : ''}`}
         accessibilityHint={t('jobDetails')}
         onPress={onPress}
         className="flex-row active:opacity-80"
@@ -78,6 +80,17 @@ export function JobCard({
             </Text>
           ) : null}
 
+          {/* Pay gets its own line: it is a decision fact, and the shared meta line
+              truncates it to "Rs. 56,..." on a phone, which is worse than not showing it. */}
+          {job.salary ? (
+            <View className="flex-row items-baseline mt-1">
+              <Text className="text-label font-bold text-ink-mute">{t('salary')}: </Text>
+              <Text className="text-label text-ink flex-1" numberOfLines={2}>
+                {job.salary}
+              </Text>
+            </View>
+          ) : null}
+
           <View className="flex-row items-center mt-3 flex-wrap">
             <Text className="text-label text-ink-mute mr-2">{t('lastDate')}</Text>
             <Stamp
@@ -91,6 +104,11 @@ export function JobCard({
               }
               detail={countdown}
             />
+            {applied ? (
+              <View className="ml-2">
+                <Stamp tone="navy" label={t('appliedStamp')} />
+              </View>
+            ) : null}
           </View>
         </View>
 

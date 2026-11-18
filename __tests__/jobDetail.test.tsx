@@ -16,6 +16,9 @@ jest.mock("expo-router", () => ({
     canGoBack: () => true,
   }),
   useLocalSearchParams: () => mockParams,
+  // The ApplyTracker re-reads the applied record on focus; without focus events in a test the
+  // effect body never runs, which is the behaviour we want here.
+  useFocusEffect: jest.fn(),
 }));
 
 const mockGetJobById = jest.fn();

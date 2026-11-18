@@ -41,7 +41,7 @@ export async function writeString(key: string, value: string): Promise<boolean> 
 }
 
 /** Prefixes of user data that "Clear saved data" removes. The language choice is kept. */
-const CLEARABLE_PREFIXES = ['jobs:', 'practice:', 'docs:', 'resources:'];
+const CLEARABLE_PREFIXES = ['jobs:', 'practice:', 'docs:', 'resources:', 'apply:'];
 
 export async function clearAppData(): Promise<number> {
   try {
@@ -61,4 +61,5 @@ export const STORAGE_KEYS = {
   testCache: (topic: string, language: string) => `practice:test:v1:${topic}:${language}`,
   documents: (scope: string, phase: string) => `docs:v1:${scope}:${phase}`,
   resourcesCache: (scope: string) => `resources:cache:v1:${scope}`,
+  applications: 'apply:v1:records',
 } as const;

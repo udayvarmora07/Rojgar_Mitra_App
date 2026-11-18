@@ -1,5 +1,6 @@
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { useJobs } from '../../hooks/useJobs';
 import {
@@ -9,7 +10,7 @@ import {
   NO_FILTERS,
 } from '../../lib/jobsFilter';
 import { deadlineStatus } from '../../lib/deadline';
-import { palette } from '../../constants/theme';
+import { curve, palette } from '../../constants/theme';
 import { Masthead } from '../../components/ui/Masthead';
 import { LanguageToggle } from '../../components/ui/LanguagePicker';
 import { JobCard } from '../../components/jobs/JobCard';
@@ -91,6 +92,29 @@ export default function HomeScreen() {
               onPress={() => router.push('/documents')}
             />
           </View>
+
+          {/* The OTR trap is the top reason a candidate loses a post; keep it one tap away. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t('applyGuide')}. ${t('applyGuideHint')}`}
+            onPress={() => router.push('/guide')}
+            style={curve}
+            className="bg-card border border-rule rounded-card p-4 flex-row items-center mt-3 active:opacity-80"
+          >
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={curve}
+              className="w-10 h-10 rounded-control border border-navy-line bg-navy-tint items-center justify-center"
+            >
+              <Ionicons name="reader-outline" size={22} color={palette.navy} />
+            </View>
+            <View className="flex-1 ml-3 pr-2">
+              <Text className="text-body font-bold text-ink">{t('applyGuide')}</Text>
+              <Text className="text-label text-ink-soft mt-0.5">{t('applyGuideHint')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+          </Pressable>
 
           {live.length > 0 ? (
             <>

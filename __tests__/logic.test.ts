@@ -1,6 +1,6 @@
 import { daysLeft, deadlineStatus, formatDate, parseDate } from '../lib/deadline';
 import { evaluateEligibility } from '../lib/eligibility';
-import { filterJobs, listDepartments, NO_FILTERS } from '../lib/jobsFilter';
+import { filterJobs, listDepartments, NO_FILTERS, splitByApplied } from '../lib/jobsFilter';
 import { progress } from '../lib/documentsStore';
 import { isSafeWebUrl } from '../lib/url';
 import { toLanguage } from '../constants/languages';
@@ -125,5 +125,24 @@ describe('language codes', () => {
     expect(toLanguage('hi')).toBe('hi');
     expect(toLanguage('fr-FR')).toBe('en');
     expect(toLanguage(undefined)).toBe('en');
+  });
+});
+
+describe('splitByApplied', () => {
+  it('splits the live list into applied and not applied, keeping order', () => {
+    const a = job({ id: 'a', deadline: '2026-12-31' });
+    const b = job({ id: 'b', deadline: '2026-12-31' });
+    const c = job({ id: 'c', deadline: '2026-12-31' });
+
+    const { applied, notApplied } = splitByApplied([a, b, c], new Set(['b']));
+    expect(applied.map((j) => j.id)).toEqual(['b']);
+    expect(notApplied.map((j) => j.id)).toEqual(['a', 'c']);
+  });
+
+  it('treats everything as not applied when nothing is tracked', () => {
+    const jobs = [job({ id: 'a' }), job({ id: 'b' })];
+    const { applied, notApplied } = splitByApplied(jobs, new Set());
+    expect(applied).toHaveLength(0);
+    expect(notApplied).toHaveLength(2);
   });
 });

@@ -67,6 +67,50 @@ export default function SettingsScreen() {
           <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
         </Pressable>
 
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t('applyGuide')}. ${t('applyGuideHint')}`}
+          onPress={() => router.push('/guide')}
+          style={curve}
+          className="bg-card border border-rule rounded-card p-4 flex-row items-center mt-3 active:opacity-80"
+        >
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={curve}
+            className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
+          >
+            <Ionicons name="reader-outline" size={22} color={palette.navy} />
+          </View>
+          <View className="flex-1 ml-3">
+            <Text className="text-body font-bold text-ink">{t('applyGuide')}</Text>
+            <Text className="text-label text-ink-soft mt-0.5">{t('applyGuideHint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t('applicationsTitle')}. ${t('applicationsIntro')}`}
+          onPress={() => router.push('/applications')}
+          style={curve}
+          className="bg-card border border-rule rounded-card p-4 flex-row items-center mt-3 active:opacity-80"
+        >
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={curve}
+            className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
+          >
+            <Ionicons name="checkbox-outline" size={22} color={palette.navy} />
+          </View>
+          <View className="flex-1 ml-3">
+            <Text className="text-body font-bold text-ink">{t('applicationsTitle')}</Text>
+            <Text className="text-label text-ink-soft mt-0.5">{t('applicationsIntro')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+        </Pressable>
+
         <SectionHeading title={t('about')} />
         <Card>
           <Text className="text-body text-ink leading-reading">{t('aboutText')}</Text>

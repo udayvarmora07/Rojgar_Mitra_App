@@ -3,9 +3,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { curve, palette } from '../../constants/theme';
 
-type Props = { question: string; value: boolean | undefined; onChange: (value: boolean) => void };
+type Props = {
+  question: string;
+  value: boolean | undefined;
+  onChange: (value: boolean) => void;
+  /** The notice's own requirement for this question, e.g. "Age Limit: 18 to 24 Years". */
+  detail?: string;
+};
 
-export function YesNoQuestion({ question, value, onChange }: Props) {
+export function YesNoQuestion({ question, value, onChange, detail }: Props) {
   const { t } = useTranslation();
 
   const option = (answer: boolean) => {
@@ -38,7 +44,14 @@ export function YesNoQuestion({ question, value, onChange }: Props) {
 
   return (
     <View className="py-4">
-      <Text className="text-body font-semibold text-ink mb-3 leading-reading">{question}</Text>
+      <Text className="text-body font-semibold text-ink mb-1 leading-reading">{question}</Text>
+      {detail ? (
+        <View style={curve} className="bg-navy-tint border border-navy-line rounded-control px-3 py-2 mb-3">
+          <Text className="text-label text-navy leading-reading">{detail}</Text>
+        </View>
+      ) : (
+        <View className="mb-2" />
+      )}
       <View accessibilityRole="radiogroup" className="flex-row gap-3">
         {option(true)}
         {option(false)}

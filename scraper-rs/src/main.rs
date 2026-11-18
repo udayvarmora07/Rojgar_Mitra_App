@@ -107,11 +107,16 @@ fn run(dry_run: bool, resources_only: bool, skip_resources: bool) -> i32 {
             }
         }
     }
-    let (pages_fetched, locations_found) = enrich_locations(&mut client, &mut valid, &present);
+    // Only rows that are new (or still missing facts) reach the network, so a daily run stays
+    // close to the listing's own cost.
+    let (pages_fetched, locations_found, detail_rows) =
+        enrich_locations(&mut client, &mut valid, &present);
     if pages_fetched > 0 {
         println!(
-            "📍 locations: {} new detail pages fetched, {} with a stated location",
-            pages_fetched, locations_found
+            "📍 detail pages: {} fetched, {} with a stated location, {} eligibility records",
+            pages_fetched,
+            locations_found,
+            detail_rows.len()
         );
     }
 
@@ -132,6 +137,14 @@ fn run(dry_run: bool, resources_only: bool, skip_resources: bool) -> i32 {
             Err(err) => {
                 eprintln!("\n❌ Database write failed: {err}");
                 return 1;
+            }
+        }
+
+        // Eligibility lives in `job_details`, so it is written after the job rows exist.
+        if !detail_rows.is_empty() {
+            match db::insert_job_details(&detail_rows) {
+                Ok(written) => println!("🧾 {} eligibility records written", written),
+                Err(err) => eprintln!("⚠️  Could not write eligibility records: {err}"),
             }
         }
     } else {
@@ -171,17 +184,20 @@ fn run(dry_run: bool, resources_only: bool, skip_resources: bool) -> i32 {
     0
 }
 
-/// FreeJobAlert article pages are the only source that states `Job Location`. Fetching them
-/// for every row would triple a daily run, so only new rows are visited.
+/// FreeJobAlert article pages carry facts the listing table does not: `Job Location`, `Pay`
+/// and `Age Limit`. Fetching them for every row would triple a daily run, so only rows that
+/// are new (or still missing all three facts) are visited — one fetch fills every empty field.
 fn enrich_locations(
     client: &mut fetch::Client,
     jobs: &mut [Job],
     present: &HashSet<String>,
-) -> (usize, usize) {
+) -> (usize, usize, Vec<db::DetailRow>) {
     let mut fetched = 0usize;
     let mut found = 0usize;
+    let mut details: Vec<db::DetailRow> = Vec::new();
     for job in jobs.iter_mut() {
-        if job.location.is_some() || present.contains(&job.source_link) {
+        let complete = job.location.is_some() && job.salary.is_some();
+        if complete || present.contains(&job.source_link) {
             continue;
         }
         if !job.source_link.contains("freejobalert.com/articles/") {
@@ -189,13 +205,40 @@ fn enrich_locations(
         }
         if let Some(html) = client.get(&job.source_link) {
             fetched += 1;
-            if let Some(location) = parse::freejobalert_location(&html) {
-                job.location = Some(location);
+            let mut got = false;
+            if job.location.is_none() {
+                if let Some(location) = parse::freejobalert_location(&html) {
+                    job.location = Some(location);
+                    got = true;
+                }
+            }
+            // Pay is the field that was previously always empty: the listing has no salary
+            // column, so 0 of 87 live rows had one before this.
+            if job.salary.is_none() {
+                if let Some(salary) = parse::freejobalert_salary(&html) {
+                    job.salary = Some(salary);
+                    got = true;
+                }
+            }
+            // Eligibility facts for `job_details`. Both required columns must be present or the
+            // row cannot be written, so the pair is collected together.
+            let age = parse::freejobalert_age_limit(&html);
+            let qualification = parse::freejobalert_qualification(&html);
+            if let (Some(age_limit), Some(required_qualifications)) = (age, qualification) {
+                details.push(db::DetailRow {
+                    job_source_link: job.source_link.clone(),
+                    age_limit,
+                    required_qualifications,
+                    application_fees: parse::freejobalert_fee(&html),
+                });
+                got = true;
+            }
+            if got {
                 found += 1;
             }
         }
     }
-    (fetched, found)
+    (fetched, found, details)
 }
 
 fn scrape_resources(

@@ -28,6 +28,18 @@ export function QuestionCard({ question, index, total, selected, reveal = false,
     return key === selected ? 'selected' : 'idle';
   };
 
+  /**
+   * The revealed verdict in words. The review pass used to communicate correct/wrong only
+   * through the box colour and a tick, which fails the product rule that every status is
+   * written — and it left a screen reader with no answer at all.
+   */
+  const labelFor = (key: OptionKey): string | undefined => {
+    if (!reveal) return undefined;
+    if (key === question.correct) return t('correct');
+    if (key === selected) return t('yourAnswer');
+    return undefined;
+  };
+
   return (
     <View style={curve} className="bg-card rounded-card p-5 mb-4 border border-rule">
       <Text className="text-label font-semibold text-ink-mute mb-2">
@@ -47,6 +59,7 @@ export function QuestionCard({ question, index, total, selected, reveal = false,
             option={key}
             text={question.options[key]}
             state={stateFor(key)}
+            stateLabel={labelFor(key)}
             disabled={reveal || !onSelect}
             onPress={() => onSelect?.(key)}
           />

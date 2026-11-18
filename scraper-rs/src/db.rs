@@ -157,6 +157,117 @@ pub fn insert_new_jobs(jobs: &[Job], present: &HashSet<String>) -> Result<Insert
     Ok(InsertStats { inserted, already_present: present.len(), new_links })
 }
 
+/// One eligibility record per job, written to `public.job_details` after the job rows exist.
+///
+/// `age_limit` and `required_qualifications` are NOT NULL in the schema, so a record is only
+/// sent when both are present. `application_fees` is optional.
+pub struct DetailRow {
+    pub job_source_link: String,
+    pub age_limit: String,
+    pub required_qualifications: String,
+    pub application_fees: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct JobIdRow {
+    id: String,
+}
+
+/// Writes `job_details` for jobs that have none yet.
+///
+/// The detail screen shows an eligibility card for every job, but the scraped rows never had
+/// one — 0 of 94 live jobs had a `job_details` row, so every scraped advertisement showed
+/// "No eligibility information yet". This looks up the job ids by `source_link` and posts the
+/// facts the article page states.
+pub fn insert_job_details(details: &[DetailRow]) -> Result<usize, String> {
+    if details.is_empty() {
+        return Ok(0);
+    }
+    let (url, key) = credentials()?;
+    let agent = agent();
+
+    let mut written = 0usize;
+    for detail in details {
+        // Resolve the parent job id; the FK requires it and PostgREST cannot join on insert.
+        let lookup = format!(
+            "{url}/rest/v1/jobs?select=id,source_link&source_link=eq.{}",
+            encode_query(&detail.job_source_link)
+        );
+        let rows: Vec<JobIdRow> = match agent
+            .get(&lookup)
+            .header("apikey", &key)
+            .header("Authorization", &format!("Bearer {key}"))
+            .call()
+        {
+            Ok(mut response) => response
+                .body_mut()
+                .read_json::<Vec<JobIdRow>>()
+                .map_err(|e| format!("could not read job id: {e}"))?,
+            Err(err) => return Err(format!("could not look up job: {err}")),
+        };
+        let Some(job_id) = rows.into_iter().next().map(|r| r.id) else {
+            continue;
+        };
+
+        let payload = serde_json::json!([{
+            "job_id": job_id,
+            "age_limit": detail.age_limit,
+            "required_qualifications": detail.required_qualifications,
+            "application_fees": detail.application_fees,
+        }]);
+        let body = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
+        match agent
+            .post(&format!("{url}/rest/v1/job_details"))
+            .header("apikey", &key)
+            .header("Authorization", &format!("Bearer {key}"))
+            .header("Content-Type", "application/json")
+            .header("Prefer", "return=minimal")
+            .send(body.as_bytes())
+        {
+            Ok(_) => written += 1,
+            // 409 means a concurrent run already wrote this job's details.
+            Err(ureq::Error::StatusCode(409)) => {}
+            Err(err) => return Err(format!("insert job_details failed: {err}")),
+        }
+    }
+    Ok(written)
+}
+
+/// Percent-encodes a value for use inside a PostgREST `eq.` filter.
+///
+/// Article URLs contain `:` and `/`, which PostgREST treats as filter syntax, so everything
+/// outside the unreserved set is escaped.
+fn encode_query(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod encode_tests {
+    use super::encode_query;
+
+    #[test]
+    fn encodes_url_special_characters_for_a_rest_filter() {
+        assert_eq!(
+            encode_query("https://x.com/a?b=1&c=2"),
+            "https%3A%2F%2Fx.com%2Fa%3Fb%3D1%26c%3D2"
+        );
+    }
+
+    #[test]
+    fn leaves_unreserved_characters_alone() {
+        assert_eq!(encode_query("a-b_c.d~e"), "a-b_c.d~e");
+    }
+}
+
 /// Inserts general (job_id NULL) study resources that are not already stored. The partial
 /// unique index on `learning_resources.link_or_content WHERE job_id IS NULL` makes a
 /// concurrent duplicate a harmless 409.

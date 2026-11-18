@@ -5,6 +5,7 @@ import { EducationLevel, EDUCATION_LEVELS, isEducationLevel } from '../constants
 import type { Language } from '../constants/languages';
 
 export type DeadlineFilter = 'all' | 'closingSoon' | 'open';
+export type ApplyFilter = 'all' | 'applied' | 'notApplied';
 
 export type JobFilters = {
   /** Exact department name, or null for all. */
@@ -68,4 +69,15 @@ export function filterJobs(jobs: Job[], filters: JobFilters, now: Date = new Dat
     }
     return true;
   });
+}
+
+/** Splits the live list by whether the reader marked each notice as applied. */
+export function splitByApplied(
+  jobs: Job[],
+  applied: Set<string>
+): { applied: Job[]; notApplied: Job[] } {
+  const yes: Job[] = [];
+  const no: Job[] = [];
+  for (const job of jobs) (applied.has(job.id) ? yes : no).push(job);
+  return { applied: yes, notApplied: no };
 }

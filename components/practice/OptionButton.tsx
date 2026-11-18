@@ -42,16 +42,22 @@ type Props = {
   state: OptionState;
   disabled?: boolean;
   onPress: () => void;
+  /** Spoken suffix for the revealed state ("Correct" / "Your answer"), words not just tint. */
+  stateLabel?: string;
 };
 
-export function OptionButton({ option, text, state, disabled, onPress }: Props) {
+export function OptionButton({ option, text, state, disabled, onPress, stateLabel }: Props) {
   const s = STYLES[state];
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ checked: state === 'selected', disabled: !!disabled }}
-      aria-checked={state === 'selected'}
-      accessibilityLabel={`${option}. ${text}`}
+      accessibilityState={{ checked: state === 'selected' || state === 'correct', disabled: !!disabled }}
+      aria-checked={state === 'selected' || state === 'correct'}
+      // In the review pass the box colour and the tick carry the verdict; a screen reader and
+      // a colour-blind reader need the same answer in words, so the state joins the label.
+      accessibilityLabel={
+        stateLabel ? `${option}. ${text}. ${stateLabel}` : `${option}. ${text}`
+      }
       disabled={disabled}
       onPress={onPress}
       style={curve}
@@ -61,6 +67,15 @@ export function OptionButton({ option, text, state, disabled, onPress }: Props) 
         <Mono className={`text-[17px] font-bold ${s.badgeText}`}>{option}</Mono>
       </View>
       <Text className={`text-body ml-3.5 flex-1 leading-reading ${s.text}`}>{text}</Text>
+      {stateLabel ? (
+        <Text
+          className={`text-[11px] font-extrabold uppercase tracking-stamp mr-2 ${
+            state === 'correct' ? 'text-open-text' : 'text-closing-text'
+          }`}
+        >
+          {stateLabel}
+        </Text>
+      ) : null}
       {state === 'correct' ? <Ionicons name="checkmark-circle" size={24} color={palette.success} /> : null}
       {state === 'wrong' ? <Ionicons name="close-circle" size={24} color={palette.stamp} /> : null}
     </Pressable>

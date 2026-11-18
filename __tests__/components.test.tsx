@@ -90,6 +90,23 @@ describe('QuestionCard', () => {
     render(<QuestionCard question={question} index={0} total={1} reveal />);
     expect(screen.getByText('Not answered')).toBeTruthy();
   });
+
+  it('states the verdict in words, not colour alone, in the review pass', () => {
+    // The correct box used to be marked only by a green tint and a tick, which a screen
+    // reader never announced and a colour-blind reader could not separate from the wrong box.
+    render(<QuestionCard question={question} index={0} total={1} selected="A" reveal />);
+    expect(screen.getByText('Correct')).toBeTruthy();
+    expect(screen.getByText('Your answer')).toBeTruthy();
+    // Both verdicts must also reach the accessible name of the option itself.
+    expect(screen.getByRole('radio', { name: /B\. Gandhinagar\. Correct/ })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /A\. Ahmedabad\. Your answer/ })).toBeTruthy();
+  });
+
+  it('does not mark anything before submission', () => {
+    render(<QuestionCard question={question} index={0} total={1} selected="A" onSelect={jest.fn()} />);
+    expect(screen.queryByText('Correct')).toBeNull();
+    expect(screen.queryByText('Your answer')).toBeNull();
+  });
 });
 
 describe('JobCard', () => {
@@ -113,6 +130,9 @@ describe('JobCard', () => {
   it('shows title, department and salary and opens on tap', () => {
     const onPress = jest.fn();
     render(<JobCard job={job} onPress={onPress} />);
+    // Pay sits on its own labelled line rather than the shared meta line, which truncated
+    // it to "Rs. 56,..." on a real phone. Both the label and the value must be present.
+    expect(screen.getByText('Salary:')).toBeTruthy();
     expect(screen.getByText('₹19,950')).toBeTruthy();
     // The accessible name carries the deadline as well as the post and department.
     fireEvent.press(screen.getByRole('button', { name: /Junior Clerk, Revenue/ }));
@@ -143,6 +163,21 @@ describe('JobCard', () => {
       />
     );
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('marks an applied notice with a written stamp, not colour alone', () => {
+    render(<JobCard job={job} onPress={jest.fn()} applied />);
+    expect(screen.getByText('Applied')).toBeTruthy();
+    // The stamp also has to reach the accessible name, because the pressable's label
+    // overrides its children for screen readers.
+    expect(
+      screen.getByRole('button', { name: /Junior Clerk, Revenue.*Applied/ })
+    ).toBeTruthy();
+  });
+
+  it('shows no applied stamp on an untouched notice', () => {
+    render(<JobCard job={job} onPress={jest.fn()} />);
+    expect(screen.queryByText('Applied')).toBeNull();
   });
 });
 

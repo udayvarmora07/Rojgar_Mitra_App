@@ -150,6 +150,37 @@ check_text "Official websites" "study material lists official links"
 click_tab "Settings" "/settings"
 check_text "Language" "settings tab opens settings screen"
 
+echo "==> Application guide (OJAS)"
+# The OTR trap is the single most valuable paragraph in the app: registration is not an
+# application. Assert both the step and the upload limits, not just that the screen loads.
+"${AB[@]}" eval "
+  (() => {
+    const el = Array.from(document.querySelectorAll('[role=\"button\"]'))
+      .find((n) => (n.getAttribute('aria-label') || '').startsWith('How to apply'));
+    if (!el) return 'missing';
+    el.click();
+    return 'clicked';
+  })();
+" 2>/dev/null | grep -q clicked || fail "settings guide row not tappable"
+check_text "OTR is not an application" "guide states that registration is not an application"
+check_text "Photo and signature limits" "guide lists the upload limits"
+check_text "15 KB" "guide states the exact 15 KB ceiling"
+audit_page "guide"
+"${AB[@]}" find text "Back" click >/dev/null 2>&1 || fail "guide has no back control"
+
+echo "==> My applications"
+"${AB[@]}" eval "
+  (() => {
+    const el = Array.from(document.querySelectorAll('[role=\"button\"]'))
+      .find((n) => (n.getAttribute('aria-label') || '').startsWith('My applications'));
+    if (!el) return 'missing';
+    el.click();
+    return 'clicked';
+  })();
+" 2>/dev/null | grep -q clicked || fail "settings applications row not tappable"
+check_text "No applications marked yet" "applications screen starts empty"
+"${AB[@]}" find text "Back" click >/dev/null 2>&1 || fail "applications has no back control"
+
 echo "==> Documents"
 "${AB[@]}" eval "
   (() => {

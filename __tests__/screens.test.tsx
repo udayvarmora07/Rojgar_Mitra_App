@@ -16,6 +16,10 @@ jest.mock('expo-router', () => {
 
 jest.mock('../lib/supabase', () => ({
   getDocumentsRequired: jest.fn().mockResolvedValue([]),
+  // The eligibility screen reads the notice's own qualification and age limit, so both
+  // lookups have to resolve for the questions to render without the requirement line.
+  getJobById: jest.fn().mockResolvedValue(null),
+  getJobDetails: jest.fn().mockResolvedValue([]),
   supabase: { functions: { invoke: jest.fn().mockRejectedValue(new Error('offline')) } },
 }));
 
@@ -58,6 +62,24 @@ describe('Eligibility screen', () => {
     expect(screen.getByText(/Make the missing documents first/)).toBeTruthy();
     fireEvent.press(screen.getByRole('button', { name: 'View Document Checklist' }));
     expect(mockPush).toHaveBeenCalledWith({ pathname: '/documents', params: { jobId: 'job-1' } });
+  });
+
+  it('shows the notice own qualification and age limit beside the questions', async () => {
+    const { getJobById, getJobDetails } = jest.requireMock('../lib/supabase') as {
+      getJobById: jest.Mock;
+      getJobDetails: jest.Mock;
+    };
+    getJobById.mockResolvedValue({ id: 'job-1', title: 'Clerk', qualification: 'Graduate' });
+    getJobDetails.mockResolvedValue([
+      { id: 'd1', job_id: 'job-1', age_limit: '18 to 24 Years', required_qualifications: 'Graduate' },
+    ]);
+
+    render(<EligibilityScreen />);
+    // Without the notice's values the reader could not tell which education was required.
+    await waitFor(() =>
+      expect(screen.getByText('Age Limit: 18 to 24 Years')).toBeTruthy()
+    );
+    expect(screen.getByText('Required Qualification: Graduate')).toBeTruthy();
   });
 });
 

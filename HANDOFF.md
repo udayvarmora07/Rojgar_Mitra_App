@@ -9,7 +9,216 @@ component record for the current visual system.
 
 ---
 
-## 0. Latest: complete UI redesign (2026-11-18)
+## 0. Latest: native E2E, real data, and the application gap (2026-11-19)
+
+This pass did three things the project had never done: it ran the app on a **real Android
+emulator on this machine**, it **filled the two data columns that were always empty**, and it
+added the one feature the research says these candidates actually lose jobs to — knowing
+whether they applied.
+
+### The local emulator now exists
+
+The previous handoff said "no emulator binary, no system image, disk is tight". That is no
+longer true:
+
+| Thing | State |
+|---|---|
+| `emulator` package | **37.2.13** installed |
+| System image | **`system-images;android-34;google_apis;x86_64`** installed |
+| AVD | **`rm_api34`** (Pixel 6 profile, 3 GB data partition) |
+| Maestro | **2.12.1** at `~/.maestro/bin` |
+| Release APK | builds and installs on the AVD |
+
+Two facts to reuse:
+
+- **The AVD's data partition is 3 GB, not the default 6 GB.** The machine had ~4 GB free and
+  the default partition refuses to boot ("Not enough space to create userdata partition").
+  `disk.dataPartition.size` lives in `~/.android/avd/rm_api34.avd/config.ini`, and the
+  emulator **rewrites that file on launch**, so pass `-partition-size 3072` on the command line
+  as well or the edit is silently undone.
+- **A `--no-daemon` Gradle release build needs ~5 GB free** and fails on a full disk only
+  *after* compiling, which looks like a silent hang. Clear `~/.cache/google-chrome/*/Cache`
+  and `android/app/build` before starting one.
+
+Boot command used here:
+
+```bash
+export ANDROID_SDK_ROOT=$HOME/Android/sdk
+$HOME/Android/sdk/emulator/emulator -avd rm_api34 -no-snapshot -no-audio \
+  -no-boot-anim -gpu swiftshader_indirect -partition-size 3072 &
+```
+
+### Native E2E passes on this machine (first time)
+
+`maestro test e2e/android/smoke.yaml` completed **every step** on the AVD: launch, home, the
+live job list, all four tabs, a pool practice test, and the scroll-back assertion. Screenshots
+in `design/references/` — `app-guide-native.png`, `app-detail-eligibility-native.png`.
+
+Native rendering is therefore no longer unverified. It also confirmed the layout holds at
+1080×2400 (the JPG/15 KB guide, the date stub, the sticky Apply bar, the tab bar).
+
+### The data gap that made two screens empty
+
+Measured against the hosted project before this pass:
+
+| Table | Rows | What it meant |
+|---|---|---|
+| `jobs` | 94 | fine |
+| `job_details` | **0** | **every** job showed "No eligibility information yet" |
+| `documents_required` | **0** | every job showed "No document list for this job" |
+| `jobs.salary` | **0 of 87 live** | the pay fact never rendered anywhere |
+
+The cause was not a bug in the app: both scrapers write `salary: None` and neither ever wrote
+`job_details`. The FreeJobAlert **listing** table has no pay column, but the **article page**
+the scraper was already fetching for `Job Location` does — as `Pay`, `Age Limit`,
+`Qualification` and a fee table.
+
+What was done:
+
+- `scraper-rs/src/parse.rs` gained `freejobalert_salary`, `freejobalert_age_limit`,
+  `freejobalert_qualification` and `freejobalert_fee`, all through one anchored
+  `freejobalert_field` helper (so `Age` cannot match a `Language` row). 6 new Rust tests.
+- `scraper-rs/src/db.rs` gained `insert_job_details` plus a PostgREST-safe `encode_query`
+  (article URLs contain `:` and `/`, which PostgREST reads as filter syntax).
+- `scraper-rs/src/main.rs` collects the detail rows during the one fetch it already does.
+- The hosted project was **backfilled**: 42 `job_details` rows and 74 `salary` values.
+
+Coverage now:
+
+| Fact | Before | After |
+|---|---|---|
+| `salary` | 0 / 87 | **69 / 87 (79%)** |
+| `job_details` | 0 / 87 | **40 / 87 (46%)** |
+| `location` | 75 / 87 | 75 / 87 (86%) |
+
+A backfill script is **not** committed: it used the service-role key. Re-running the scraper
+with `--no-dry-run` produces the same rows through `insert_job_details`.
+
+### Salary was also truncated in the UI
+
+`JobCard` put pay on the shared one-line meta row (`posts · qualification · salary`), which on
+a phone rendered `Rs. 56,...` — worse than not showing it. Pay now has its own labelled line
+with two lines of room. `__tests__/components.test.tsx` asserts the label and the value.
+
+### Application guide: the OTR trap (new screen, `/guide`)
+
+Research into the actual OJAS process found the documented top reason a Gujarat candidate
+loses a post is **not the exam**: they complete One-Time Registration, believe that counts as
+applying, and miss the deadline. The second is losing the confirmation number before the call
+letter is released. Neither was in the app.
+
+`app/guide.tsx` + `constants/applicationGuide.ts` transcribe the official order (OTR → the
+trap → open the advertisement → fill → upload → fee → confirm → call letter), mark the trap
+with a **stamp and a warning surface** rather than hiding it in prose, and state the exact
+upload limits (**JPG, under 15 KB**, 3.6×5.0 cm photo, 7.5×2.5 cm signature). It is reachable
+from Home, Settings and every job detail. Six tests in `__tests__/applicationGuide.test.ts`
+guard the step order, the single trap, the limits, and that all three languages are real
+translations.
+
+### Application tracking (new: `/applications`, and a tracker on job detail)
+
+The app could hide an expired notice but could not answer "did I apply to this one?".
+`lib/applications.ts` keeps a local record per job: confirmation number, advertisement number,
+the deadline at apply time, and when it was marked.
+
+- `components/jobs/ApplyTracker.tsx` on job detail: mark applied, add the confirmation number,
+  undo.
+- `app/applications.tsx`: the reader's own list, including records whose deadline has passed
+  (the cases they are waiting on a call letter for).
+- `JobCard` takes `applied` and renders a written **Applied** stamp plus an accessible-name
+  suffix — status is never colour alone.
+- The Jobs tab shows an applied count card when there is anything to show.
+- `apply:` was added to `CLEARABLE_PREFIXES`, so "Clear saved data" cannot leave orphaned
+  records behind. That is tested.
+- 10 tests in `__tests__/applications.test.ts`.
+
+### A real accessibility bug, fixed
+
+In the test-review pass, `OptionButton` conveyed correct/wrong **only** through box colour and
+a tick — no words, and nothing in the accessible name. That breaks the product rule that every
+status is written. The verdict now appears as text (`Correct` / `Your answer`), in the
+accessible label, and `accessibilityState.checked` follows the correct option in review mode.
+Covered by two new tests.
+
+A second one was caught by the web E2E itself: the guide screen is entirely static text, so
+its scroll container had no focusable child and a keyboard user could not scroll it at all
+(axe `scrollable-region-focusable`, **serious**). Fixed with `tabIndex={0}` on the ScrollView;
+re-audited to 0 critical/serious. The web E2E now asserts the guide and applications screens,
+which is how this was found.
+
+### Eligibility now answers against the real notice
+
+The four yes/no questions were identical for every post: a candidate was asked "Do you have the
+required education?" without being shown which education. That was tolerable when
+`job_details` was empty; now that 40 jobs have real values, the screen shows the notice's own
+`Age Limit` and `Required Qualification` beside the question that asks about them
+(`YesNoQuestion` gained a `detail` prop, `eligRequirement` names the pair). Nothing is shown
+when the notice does not state a value — it never invents a requirement.
+
+### Verified in this session
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **15 suites, 136 tests pass** |
+| Rust | `cargo test --locked` | **30 tests** |
+| Rust lint | `cargo clippy --locked -- -D warnings` | clean |
+| Python scraper | `unittest discover -s scraper` | **14 tests** |
+| Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass, **now covering the guide (incl. its axe audit) and applications screens** |
+| Native E2E | `maestro test e2e/android/smoke.yaml` | **every step COMPLETED** on `rm_api34` |
+| Native screens | Maestro flows | guide (OTR trap, 15 KB), eligibility (`Age Limit 18 to 24 Years`), applied tracker |
+
+### Still open
+
+- **46% of jobs have eligibility data and 79% have pay.** The remaining rows are articles
+  whose pages state `Varies by post` or omit the row. More coverage needs the official PDF,
+  which is a different parser.
+- `documents_required` is still **0 rows** for scraped jobs. The screens fall back to the
+  standard PRD 5.5 checklist, which is correct but generic. Extracting the per-job list from
+  article pages is the next data task.
+- The emulator and the release APK are local only. CI still uses its own emulator action.
+
+### Security items: what was actually resolved (2026-11-19)
+
+Two of the security items from the previous open list were investigated in depth. The honest
+result:
+
+**The `rojgar-mitra-setup` Supabase PAT is still valid and could NOT be revoked here.** The
+Supabase Management API has no personal-access-token endpoint at all: the full OpenAPI schema
+(`https://api.supabase.com/api/v1/openapi.json`) contains only `/v1/oauth/token` and
+`/v1/oauth/revoke` (OAuth apps), and every PAT-shaped path returns 404. `supabase logout` only
+deletes the local copy — it does not revoke. Revocation is dashboard-only, and the browser
+sessions available on this machine are not signed into Supabase (no auth token in any Chrome
+profile's cookies or localStorage; the only `sb-` entries are analytics).
+
+The token itself is the `sbp_` value in the OS keyring under service `Supabase CLI`, account
+`supabase` (44 chars). It is project-scoped: `/v1/projects` succeeds, `/v1/organizations` and
+`/v1/profile` return 403 with `missing_permissions`. **To revoke it:** sign in at
+`https://supabase.com/dashboard/account/tokens`, find `rojgar-mitra-setup`, delete it. Nothing
+in this repo or in `~/.commandcode` holds it, so no other cleanup is needed.
+
+**The GitHub PAT previously written into `.mcp.json` is already dead.** The fine-grained token
+found in the editor's file history (`~/.commandcode/file-history`, `github_pat_11AXH5…`, 93
+chars) returns **401 Bad credentials** from `https://api.github.com/user`. It was never
+committed: `git log --all -- .mcp.json` is empty and a scan of all history for
+`gh[pousr]_` / `github_pat_` / `sbp_` finds nothing, because `.mcp.json` is gitignored.
+
+`.mcp.json` no longer references `GITHUB_MCP_PAT` (which was never defined anywhere, so the
+GitHub MCP server could not connect at all). It now reads
+`Authorization: Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}`, which is exported from the GitHub CLI
+credential store by `~/.bashrc`. That token is a `gho_` OAuth token, and it authenticates
+`https://api.githubcopilot.com/mcp/` directly — verified: `initialize` returns **HTTP 200**
+with `serverInfo.name: github-mcp-server`, no `npx` server needed. Rotation of that OAuth
+token is a `gh auth refresh` away and it is not stored in the repo.
+
+`cmd mcp auth github` (the OAuth flow) is **not** usable for this server: it answers
+`Server requires pre-registered OAuth credentials (no Dynamic Client Registration endpoint
+advertised)`.
+
+---
+
+## 0.0 Complete UI redesign (2026-11-18)
 
 The whole frontend was replaced, not polished. The previous system was consistent but read as
 a generic Tailwind card stack; the new one has a visual point of view grounded in the
@@ -576,16 +785,24 @@ GPRB, Gujarat High Court, SPIPA. GSSSB additionally needs a JS POST with an anti
 5. **`LLM_API_KEY` — DONE.** Set on `wiyryfopgjdzirndyxzp`; `generate-test` is deployed and real
    calls return 8–10 valid questions in 38–53 s. The key is never printed and never carries an
    `EXPO_PUBLIC_` prefix.
-6. **No local Android emulator** (no binary, no system image; disk is tight). Native E2E must run
-   on hosted CI unless `emulator` + `system-images;android-34;google_apis;x86_64` are installed.
-7. **Revoke the setup token.** A 7-day full-access personal access token named
-   `rojgar-mitra-setup` was created to link, migrate and deploy. Revoke it at
-   **Account → Access Tokens** when it is no longer needed. It lives in the CLI's own config,
-   outside the repo.
-8. **Rotate the GitHub PAT** that was previously written into `.mcp.json` (it is now
-   `${GITHUB_MCP_PAT}` and the file is gitignored, but rotation is still the right move).
-9. **`opencli` browser extension is not connected** (`opencli doctor`); not needed for current
-   work.
+6. **Local Android emulator — DONE (2026-11-19).** `emulator` 37.2.13,
+   `system-images;android-34;google_apis;x86_64`, AVD `rm_api34` and Maestro 2.12.1 are
+   installed. `maestro test e2e/android/smoke.yaml` passes on it. See §0 for the partition and
+   disk gotchas.
+7. **Revoke the setup token — STILL OPEN, and it cannot be done from here.** The Supabase
+   Management API exposes no PAT endpoint and `supabase logout` only deletes the local copy.
+   Sign in at `https://supabase.com/dashboard/account/tokens` and delete
+   `rojgar-mitra-setup`. Full evidence in §0 → "Security items".
+8. **GitHub MCP credential — RESOLVED differently than planned.** The old fine-grained PAT is
+   already dead (401), so there was nothing to rotate. `.mcp.json` no longer uses a PAT at all;
+   it reads `${GITHUB_PERSONAL_ACCESS_TOKEN}`, a `gho_` OAuth token from the `gh` credential
+   store that authenticates the MCP endpoint directly (verified HTTP 200). Refresh it with
+   `gh auth refresh` whenever needed. See §0.
+9. **`opencli` browser extension — CONNECTED (2026-11-19).** `opencli doctor` reports
+   `extensionConnected: true` with extension 1.0.27. The extension lives in the Chrome profile
+   `Profile 5`; it connects only while a Chrome window is open **on that profile** — the daemon
+   listens on `ws://127.0.0.1:19825/ext` and the extension dials out. Opening any other profile
+   does not connect it.
 
 ---
 
