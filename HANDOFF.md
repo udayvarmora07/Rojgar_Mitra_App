@@ -88,7 +88,10 @@ place. Visual evidence is in `design/references/`:
   native-only details (`borderCurve` squircles, safe-area math under the status bar, tab-bar
   rendering, the sticky Apply bar with the keyboard closed) should be checked in Expo Go or on
   a device before release.
-- **No commit or push.** The owner declined auto-git and per-change commits; `§9` still holds.
+- **Pushed.** The redesign is committed to `main` as `2b26b95` and pushed to
+  `origin/main`. The first CI run (`44299520351`) had typecheck/lint/Jest, scrapers, live
+  gates and build-web green; only the Android Maestro job was still running when this line was
+  written.
 - **The generated AI question can be long** (e.g. a multi-part matching question fills the
   screen). The UI scrolls and keeps the footer pinned, but the content policy for prompt
   length lives in `supabase/functions/generate-test`, not the UI. Worth tightening separately.
