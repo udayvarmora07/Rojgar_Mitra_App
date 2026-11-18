@@ -76,12 +76,14 @@ the scraper was already fetching for `Job Location` does — as `Pay`, `Age Limi
 What was done:
 
 - `scraper-rs/src/parse.rs` gained `freejobalert_salary`, `freejobalert_age_limit`,
-  `freejobalert_qualification` and `freejobalert_fee`, all through one anchored
-  `freejobalert_field` helper (so `Age` cannot match a `Language` row). 6 new Rust tests.
-- `scraper-rs/src/db.rs` gained `insert_job_details` plus a PostgREST-safe `encode_query`
-  (article URLs contain `:` and `/`, which PostgREST reads as filter syntax).
-- `scraper-rs/src/main.rs` collects the detail rows during the one fetch it already does.
-- The hosted project was **backfilled**: 42 `job_details` rows and 74 `salary` values.
+  `freejobalert_qualification`, `freejobalert_fee` and `freejobalert_documents`, all through
+  one anchored `freejobalert_field` helper (so `Age` cannot match a `Language` row). 10 new
+  Rust tests.
+- `scraper-rs/src/db.rs` gained `insert_job_details`, `insert_documents` and a PostgREST-safe
+  `encode_query` (article URLs contain `:` and `/`, which PostgREST reads as filter syntax).
+- `scraper-rs/src/main.rs` collects every fact during the one article fetch it already does.
+- The hosted project was **backfilled**: 42 `job_details` rows, 74 `salary` values and 227
+  `documents_required` rows.
 
 Coverage now:
 
@@ -89,10 +91,17 @@ Coverage now:
 |---|---|---|
 | `salary` | 0 / 87 | **69 / 87 (79%)** |
 | `job_details` | 0 / 87 | **40 / 87 (46%)** |
+| `documents_required` | **0 rows** | **227 rows across 38 jobs** |
 | `location` | 75 / 87 | 75 / 87 (86%) |
 
+The document list is the article's own "Documents Required" section
+(`freejobalert_documents` → `insert_documents`), so the checklist screen now shows the
+notice's list instead of the generic fallback. Verified on the emulator: the SMC Deputy Town
+Planner notice lists *"Proof of age: birth certificate, school leaving certificate"* and the
+rest of its own requirements.
+
 A backfill script is **not** committed: it used the service-role key. Re-running the scraper
-with `--no-dry-run` produces the same rows through `insert_job_details`.
+with `--no-dry-run` produces the same rows through `insert_job_details` and `insert_documents`.
 
 ### Salary was also truncated in the UI
 
@@ -167,16 +176,15 @@ when the notice does not state a value — it never invents a requirement.
 | Python scraper | `unittest discover -s scraper` | **14 tests** |
 | Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass, **now covering the guide (incl. its axe audit) and applications screens** |
 | Native E2E | `maestro test e2e/android/smoke.yaml` | **every step COMPLETED** on `rm_api34` |
-| Native screens | Maestro flows | guide (OTR trap, 15 KB), eligibility (`Age Limit 18 to 24 Years`), applied tracker |
+| Native screens | Maestro flows | guide (OTR trap, 15 KB), eligibility (`Age Limit 18 to 24 Years`), applied tracker, per-job document list |
 
 ### Still open
 
 - **46% of jobs have eligibility data and 79% have pay.** The remaining rows are articles
   whose pages state `Varies by post` or omit the row. More coverage needs the official PDF,
   which is a different parser.
-- `documents_required` is still **0 rows** for scraped jobs. The screens fall back to the
-  standard PRD 5.5 checklist, which is correct but generic. Extracting the per-job list from
-  article pages is the next data task.
+- **38 of 83 FreeJobAlert jobs have a document section.** The other articles describe documents
+  in prose rather than a list, so there is nothing structured to read.
 - The emulator and the release APK are local only. CI still uses its own emulator action.
 
 ### Security items: what was actually resolved (2026-11-19)
