@@ -190,6 +190,7 @@ jobs:
           arch: x86_64
           profile: pixel_6
           script: |
+            adb shell settings put global hide_error_dialogs 1
             adb install -r android/app/build/outputs/apk/release/app-release.apk
             maestro-runner test e2e/android/smoke.yaml; STATUS=$?; if [ $STATUS -ne 0 ]; then adb logcat -d | tail -200; exit $STATUS; fi
 
