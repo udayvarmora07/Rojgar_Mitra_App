@@ -22,6 +22,12 @@ const en = {
   incorrect: 'Incorrect',
   offlineLabel: 'Offline',
   noticeLabel: 'Notice',
+  viewAll: 'View all',
+  openResource: 'Open resource',
+  pdfLabel: 'PDF',
+  videoLabel: 'Video',
+  linkLabel: 'Website',
+  resourceLinkError: 'Could not open this resource. Please try again.',
   offlineBanner: 'No internet. Showing saved jobs.',
   loadFailed: 'Could not load jobs',
   loadFailedHint: 'Check your internet connection and try again.',
@@ -48,13 +54,17 @@ const en = {
   quickDocuments: 'My Documents',
   quickDocumentsHint: 'For applying and exam day',
   openNotices: 'open notices',
-  closingThisWeekCount_one: '{{count}} notice closes this week',
-  closingThisWeekCount_other: '{{count}} notices close this week',
+  closingThisWeekCount_one: '{{count, number}} notice closes this week',
+  closingThisWeekCount_other: '{{count, number}} notices close this week',
+  browseByCategory: 'Browse by category',
+  browseByCategoryHint: 'Tap the level you have passed',
+  departmentsCount_one: '{{count, number}} department',
+  departmentsCount_other: '{{count, number}} departments',
 
   // Deadline
   lastDate: 'Last Date',
-  daysLeft_one: '{{count}} day left',
-  daysLeft_other: '{{count}} days left',
+  daysLeft_one: '{{count, number}} day left',
+  daysLeft_other: '{{count, number}} days left',
   lastDayToday: 'Last day today!',
   expired: 'Closed',
 
@@ -65,20 +75,29 @@ const en = {
   filters: 'Filters',
   searchDepartments: 'Search departments',
   sortedByLastDate: 'Sorted by last date',
-  showResults_one: 'Show {{count}} job',
-  showResults_other: 'Show {{count}} jobs',
+  showResults_one: 'Show {{count, number}} job',
+  showResults_other: 'Show {{count, number}} jobs',
   filterAll: 'All',
   filterClosingSoon: 'Closing soon',
   filterOpen: 'Open',
   allDepartments: 'All departments',
   department: 'Department',
+  educationLevel: 'Education level',
+  allEducationLevels: 'All education levels',
+  departmentFilterHint: 'Search all departments',
+  edu10: '10th Pass',
+  edu12: '12th Pass',
+  eduIti: 'ITI',
+  eduDiploma: 'Diploma',
+  eduGraduate: 'Graduate',
+  eduPostGraduate: 'Post Graduate',
   showAllDepartments: 'Show all departments',
   fewerDepartments: 'Show fewer departments',
   noResults: 'No jobs match your search',
   noResultsHint: 'Try removing a filter',
   clearFilters: 'Clear filters',
-  jobsCount_one: '{{count}} job',
-  jobsCount_other: '{{count}} jobs',
+  jobsCount_one: '{{count, number}} job',
+  jobsCount_other: '{{count, number}} jobs',
 
   // Job details
   jobInfo: 'Job Information',
@@ -86,12 +105,13 @@ const en = {
   postDate: 'Post Date',
   deadline: 'Last Date to Apply',
   salary: 'Salary',
+  location: 'Location',
   eligibility: 'Eligibility',
   ageLimit: 'Age Limit',
   qualification: 'Required Qualification',
   vacancies: 'Number of Posts',
-  vacancyCount_one: '{{count}} post',
-  vacancyCount_other: '{{count}} posts',
+  vacancyCount_one: '{{count, number}} post',
+  vacancyCount_other: '{{count, number}} posts',
   advertisementNo: 'Advertisement Number',
   fees: 'Application Fees',
   noEligibilityInfo: 'No eligibility information yet. Please read the official notification.',
@@ -102,6 +122,10 @@ const en = {
   applyOnline: 'Apply Now - Official Website',
   checkEligibility: 'Check My Eligibility',
   viewDocuments: 'View Document Checklist',
+  studyMaterial: 'Study material',
+  studyMaterialHint: 'Free practice tests and official PDFs',
+  resourceCount_one: '{{count, number}} resource for this job',
+  resourceCount_other: '{{count, number}} resources for this job',
   startPractice: 'Start Practice Test',
   start: 'Start',
   jobNotFound: 'Job not found',
@@ -133,9 +157,9 @@ const en = {
   applicationDocs: 'For Applying',
   examDocs: 'For Exam Day',
   progressLabel: 'Progress',
-  readyCount: '{{done}} of {{total}} ready',
-  pendingCount_one: '{{count}} document still needed',
-  pendingCount_other: '{{count}} documents still needed',
+  readyCount: '{{done, number}} of {{total, number}} ready',
+  pendingCount_one: '{{count, number}} document still needed',
+  pendingCount_other: '{{count, number}} documents still needed',
   allReady: 'All documents are ready!',
   ready: 'Ready',
   notReady: 'Not Ready',
@@ -165,12 +189,12 @@ const en = {
   catGujarati: 'Gujarati',
   catEnglish: 'English',
   catCurrent: 'Current Affairs',
-  questionCount: '{{count}} questions',
+  questionCount: '{{count, number}} questions',
   timedTest: '15-minute timer',
   timedTestHint: 'Practice like the real exam',
   generatingTest: 'Making your test...',
-  questionOf: 'Question {{current}} of {{total}}',
-  answeredCount: '{{count}} of {{total}} answered',
+  questionOf: 'Question {{current, number}} of {{total, number}}',
+  answeredCount: '{{count, number}} of {{total, number}} answered',
   timeLeft: 'Time left',
   timeUp: 'Time is up! Your test was submitted.',
   testComplete: 'Test Complete',
@@ -187,6 +211,17 @@ const en = {
   scoreKeepPractising: 'Keep practising',
   sourceBank: 'No internet: showing saved practice questions',
   sourceCache: 'No internet: showing your last downloaded test',
+
+  // Study material
+  resourcesTitle: 'Study material',
+  resourcesIntro: 'Practice tests and official documents',
+  resourcesForJobTitle: 'For {{job}}',
+  practiceTests: 'Practice tests',
+  pdfResources: 'PDF documents',
+  videoResources: 'Videos',
+  websiteResources: 'Official websites',
+  noResources: 'No study material yet',
+  noResourcesHint: 'Check back later or start a practice test.',
 
   // Settings
   settingsTitle: 'Settings',
@@ -206,3 +241,14 @@ const en = {
 
 export default en;
 export type TranslationShape = typeof en;
+
+type Join<K extends string, P extends string> = `${K}.${P}`;
+
+type Leaves<T> = T extends string
+  ? ''
+  : {
+      [K in keyof T & string]: T[K] extends string ? K : Join<K, Leaves<T[K]>>;
+    }[keyof T & string];
+
+/** Every dot-separated key in the English source dictionary. */
+export type TranslationKey = Leaves<TranslationShape>;

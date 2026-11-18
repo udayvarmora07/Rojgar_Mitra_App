@@ -89,6 +89,7 @@ mod tests {
             vacancies: None,
             qualification: None,
             advertisement_no: None,
+            location: None,
         }
     }
 

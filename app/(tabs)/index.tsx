@@ -1,13 +1,19 @@
-import { RefreshControl, ScrollView, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useJobs } from '../../hooks/useJobs';
-import { filterJobs, NO_FILTERS } from '../../lib/jobsFilter';
+import {
+  countByEducationLevel,
+  filterJobs,
+  listDepartments,
+  NO_FILTERS,
+} from '../../lib/jobsFilter';
 import { deadlineStatus } from '../../lib/deadline';
 import { palette } from '../../constants/theme';
 import { Masthead } from '../../components/ui/Masthead';
 import { LanguageToggle } from '../../components/ui/LanguagePicker';
 import { JobCard } from '../../components/jobs/JobCard';
+import { CategoryBoard } from '../../components/jobs/CategoryBoard';
 import { Button } from '../../components/ui/Button';
 import { Banner, EmptyState, Footnote, LoadingState } from '../../components/ui/States';
 import { ActionCard } from '../../components/ui/ActionCard';
@@ -27,6 +33,8 @@ export default function HomeScreen() {
   const live = filterJobs(jobs, NO_FILTERS);
   const latest = live.slice(0, 8);
   const closing = live.filter((job) => deadlineStatus(job.deadline) === 'closingSoon').length;
+  const educationCounts = countByEducationLevel(live);
+  const departments = listDepartments(live);
 
   return (
     <Screen>
@@ -83,6 +91,23 @@ export default function HomeScreen() {
               onPress={() => router.push('/documents')}
             />
           </View>
+
+          {live.length > 0 ? (
+            <>
+              <SectionHeading title={t('browseByCategory')} />
+              <Text className="text-label text-ink-soft -mt-1 mb-3">
+                {t('browseByCategoryHint')}
+              </Text>
+              <CategoryBoard
+                counts={educationCounts}
+                departmentCount={departments.length}
+                onSelectEducation={(education) =>
+                  router.push({ pathname: '/jobs', params: { education } })
+                }
+                onSelectDepartments={() => router.push('/jobs?filters=1')}
+              />
+            </>
+          ) : null}
 
           <SectionHeading
             title={t('latestJobs')}

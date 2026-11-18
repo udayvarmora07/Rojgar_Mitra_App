@@ -49,8 +49,8 @@ export function useChecklist(phase: DocPhase, jobId?: string) {
     }
     return DEFAULT_DOCUMENTS[phase].map((d) => ({
       id: d.key,
-      title: t(`docs.${d.key}.name`),
-      description: t(`docs.${d.key}.desc`),
+      title: t(`docs.${d.key}.name` as const),
+      description: t(`docs.${d.key}.desc` as const),
     }));
   }, [jobDocs, phase, t]);
 

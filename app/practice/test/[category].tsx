@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadPracticeTest, scoreTest, OptionKey, TestGenerationResult } from '../../../utils/aiGenerator';
 import { isTopic, TEST_CATEGORIES, TIMER_SECONDS } from '../../../constants/testCategories';
 import { addResult } from '../../../lib/testHistory';
+import { formatPercent, formatScore } from '../../../lib/format';
 import { useLanguage } from '../../../hooks/useLanguage';
 import { useCountdown } from '../../../hooks/useCountdown';
 import { Masthead } from '../../../components/ui/Masthead';
@@ -103,6 +104,8 @@ export default function PracticeTestScreen() {
     const score = scoreTest(test.questions, answers);
     const percent = total ? Math.round((score / total) * 100) : 0;
     const good = percent >= 60;
+    const scoreLabel = formatScore(score, total, language);
+    const percentLabel = formatPercent(total ? score / total : 0, language);
 
     return (
       <Screen>
@@ -116,7 +119,7 @@ export default function PracticeTestScreen() {
 
           <View
             accessible
-            accessibilityLabel={`${t('yourScore')}: ${score} / ${total}, ${percent}%`}
+            accessibilityLabel={`${t('yourScore')}: ${scoreLabel}, ${percentLabel}`}
             className="bg-card rounded-card p-6 mb-4 border border-rule items-center"
             style={curve}
           >
@@ -126,9 +129,9 @@ export default function PracticeTestScreen() {
             />
             <Text className="text-body text-ink-soft mt-4">{t('yourScore')}</Text>
             <Mono className="text-[52px] leading-[58px] font-bold text-ink mt-1">
-              {score}/{total}
+              {scoreLabel}
             </Mono>
-            <Text className="text-title font-bold text-ink-soft mt-1">{percent}%</Text>
+            <Text className="text-title font-bold text-ink-soft mt-1">{percentLabel}</Text>
             <View className="self-stretch mt-4">
               <ProgressBar ratio={percent / 100} tone={good ? 'accent' : 'primary'} />
             </View>

@@ -54,11 +54,11 @@ pub fn department(code: &str) -> String {
         .unwrap_or(cleaned)
 }
 
-fn text_of(el: &ElementRef) -> String {
+pub(crate) fn text_of(el: &ElementRef) -> String {
     clean(&el.text().collect::<Vec<_>>().join(" "))
 }
 
-fn absolute(base: &str, href: &str) -> Option<String> {
+pub(crate) fn absolute(base: &str, href: &str) -> Option<String> {
     url::Url::parse(base)
         .ok()
         .and_then(|b| b.join(href).ok())
@@ -113,9 +113,30 @@ pub fn ojas_home(html: &str, base: &str, today: &str) -> Vec<Job> {
             vacancies: None,
             qualification: None,
             advertisement_no: None,
+            location: None,
         });
     }
     jobs
+}
+
+/// `Job Location | Surat` from a FreeJobAlert article page. Listing rows do not carry a
+/// location, so the scraper fetches the article for new rows and reads this table.
+pub fn freejobalert_location(html: &str) -> Option<String> {
+    let document = Html::parse_document(html);
+    let tr_sel = Selector::parse("tr").expect("static selector");
+    let td_sel = Selector::parse("td").expect("static selector");
+
+    for row in document.select(&tr_sel) {
+        let cells: Vec<String> = row.select(&td_sel).map(|td| text_of(&td)).collect();
+        if cells.len() < 2 {
+            continue;
+        }
+        let label = cells[0].to_lowercase();
+        if label == "job location" || label == "location" || label.starts_with("job location") {
+            return placeholder_to_none(&cells[1]);
+        }
+    }
+    None
 }
 
 /// Open recruitments from GPSC's table: Advt. No. | Description | Total Posts | Last Apply Date.
@@ -179,6 +200,7 @@ pub fn gpsc_open(html: &str, base: &str, today: &str) -> Vec<Job> {
                 vacancies: None,
                 qualification: None,
                 advertisement_no: if advt_no.is_empty() { None } else { Some(advt_no.clone()) },
+                location: None,
             });
         }
     }
@@ -257,6 +279,7 @@ pub fn freejobalert_gujarat(html: &str, base: &str, today: &str) -> Vec<Job> {
                 vacancies,
                 qualification: placeholder_to_none(cell(idx_qual)),
                 advertisement_no: placeholder_to_none(cell(idx_advt)),
+                location: None,
             });
         }
     }
@@ -279,7 +302,7 @@ fn strip_post_count(text: &str) -> String {
 }
 
 /// The listing uses an en dash for "not applicable"; store nothing instead.
-fn placeholder_to_none(text: &str) -> Option<String> {
+pub(crate) fn placeholder_to_none(text: &str) -> Option<String> {
     let cleaned = clean(text);
     if cleaned.is_empty() || cleaned == "–" || cleaned == "-" || cleaned == "—" {
         None
@@ -326,6 +349,14 @@ mod tests {
           <td><a href="https://www.freejobalert.com/articles/jmc-recruitment-2026">Get Details</a></td></tr>
     </table>
     <table><tr><th>Nothing</th></tr><tr><td>navigation</td></tr></table>"#;
+
+    const FJA_ARTICLE_HTML: &str = r#"
+    <table class="fja-table">
+      <tr><th>Post Name</th><th>Details</th></tr>
+      <tr><td>Job Location</td><td>Surat</td></tr>
+      <tr><td>Last Date</td><td>20-11-2026</td></tr>
+    </table>
+    <div class="widget"><h3>JOBS BY LOCATION</h3><a href="/surat-jobs">Surat jobs</a></div>"#;
 
     #[test]
     fn ojas_parses_org_title_deadline_and_absolute_link() {
@@ -388,6 +419,15 @@ mod tests {
     fn freejobalert_ignores_navigation_tables() {
         let html = "<table><tr><th>Nothing</th></tr><tr><td>x</td></tr></table>";
         assert!(freejobalert_gujarat(html, "https://www.freejobalert.com/", TODAY).is_empty());
+    }
+
+    #[test]
+    fn freejobalert_reads_the_job_location_row_only() {
+        assert_eq!(freejobalert_location(FJA_ARTICLE_HTML).as_deref(), Some("Surat"));
+
+        let no_location = "<table><tr><td>Job Location</td><td>–</td></tr></table>";
+        assert_eq!(freejobalert_location(no_location), None);
+        assert_eq!(freejobalert_location("<p>No table here</p>"), None);
     }
 
     #[test]

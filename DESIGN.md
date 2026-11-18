@@ -111,6 +111,17 @@ Left date stub, then title (20px bold), department, one meta line (posts · qual
 salary), then a "Last Date" label and the status stamp. Chevron at the trailing edge. One
 press target; no nested actions.
 
+### Category board
+One white card, not six floating cards: a two-column grid of education levels that have open
+notices, each with a written count, closed by a full-width "All departments" row. Hairlines
+separate the cells; an odd final level spans both columns. The card is a catalogue, not a
+badge wall.
+
+### Study-material row
+A 76dp row in a grouped card: type icon tile, title (18px bold), optional description and
+optional job source, then a chevron (practice) or an open glyph (external). The group heading
+already names the type, so the row does not repeat it; the accessible name still does.
+
 ### Action card
 Home's primary action is a filled navy card with a live count in mono and the count label
 under it (e.g. `94` / `OPEN NOTICES`). The two peer actions are white cards with an icon
@@ -160,12 +171,19 @@ above a filled icon; inactive tabs are `ink-mute` outlines. The bar is centred a
 ## 4. Screen composition
 
 - **Home** — masthead → "What do you want to do?" → live primary jobs action → Practice and
-  Documents peers → "Latest Jobs" with View all → one-line official-notice footnote.
-- **Jobs** — masthead with search → deadline segment + Filters → "Sorted by last date" /
-  clear → job cards. Department filter is a searchable sheet with counts.
-- **Job detail** — masthead → NOTICE block with title and deadline panel → facts → eligibility
-  → documents → practice CTA → lexically last, a sticky Apply bar.
-- **Practice** — timer switch → 2-column topic grid (icon, name, 10 Q) → past scores.
+  Documents peers → "Browse by category" index card (education levels with counts, then all
+  departments) → "Latest Jobs" with View all → one-line official-notice footnote.
+- **Jobs** — masthead with search → deadline segment + Filters → summary line (education ·
+  department) → "Sorted by last date" / clear → job cards. The filter sheet carries education
+  levels first, then the searchable department list with counts.
+- **Job detail** — masthead → NOTICE block with title and deadline panel → facts (including
+  Location) → eligibility → documents → Study material → practice CTA → lexically last, a
+  sticky Apply bar.
+- **Practice** — timer switch → 2-column topic grid (icon, name, 10 Q) → Study material link
+  → past scores.
+- **Study material** — masthead → grouped rows: Practice tests, PDF documents, Videos,
+  Official websites. A practice row opens its topic; an external row opens the browser. Each
+  row has a type icon, title, optional description and optional job source.
 - **Test** — masthead progress in white → question card → answered count → sticky Previous/Next.
 - **Results** — score panel with verdict stamp and mono score → New Test / Go Back → review.
 - **Documents** — overall progress block → two phase cards → checklist rows.
@@ -208,9 +226,11 @@ a deliberate brand surface, not a replacement for the navigation back behaviour.
 | JS-side palette, `curve` | `constants/theme.ts` |
 | Masthead, screen frame, section heading | `components/ui/Masthead.tsx`, `Screen.tsx`, `SectionHeading.tsx` |
 | Date stub, stamp, job card | `components/jobs/DateStub.tsx`, `ui/Stamp.tsx`, `jobs/JobCard.tsx` |
+| Category shortcuts | `components/jobs/CategoryBoard.tsx` |
+| Study-material row | `components/resources/ResourceRow.tsx` |
 | Language control | `components/ui/LanguagePicker.tsx` |
 | States | `components/ui/States.tsx`, `ProgressBar.tsx` |
-| Screens | `app/(tabs)/*`, `app/job/[id].tsx`, `app/practice/test/[category].tsx`, `app/documents/*`, `app/eligibility/[jobId].tsx` |
+| Screens | `app/(tabs)/*`, `app/job/[id].tsx`, `app/resources.tsx`, `app/practice/test/[category].tsx`, `app/documents/*`, `app/eligibility/[jobId].tsx` |
 | App icon, adaptive icon, splash, favicon | `assets/` + `app.json` |
 
 ## 9. Do / don't

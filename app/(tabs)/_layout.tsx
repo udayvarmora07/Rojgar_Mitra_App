@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Platform, View } from 'react-native';
 import { palette } from '../../constants/theme';
+import type { TranslationKey } from '../../lib/locales/en';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-const TABS: { name: string; titleKey: string; icon: IconName; outline: IconName }[] = [
+const TABS: { name: string; titleKey: TranslationKey; icon: IconName; outline: IconName }[] = [
   { name: 'index', titleKey: 'tabHome', icon: 'home', outline: 'home-outline' },
   { name: 'jobs', titleKey: 'tabJobs', icon: 'briefcase', outline: 'briefcase-outline' },
   { name: 'practice', titleKey: 'tabPractice', icon: 'school', outline: 'school-outline' },

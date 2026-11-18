@@ -1,5 +1,9 @@
 -- Rojgar Mitra Database Schema
 -- Gujarat Govt Jobs Aggregator
+--
+-- NOTE: supabase/migrations/ is the source of truth. This file is kept as a readable
+-- reference for the original schema; newer columns and tables (practice_questions,
+-- education_level, location, learning-resource metadata) live in migrations 003-008.
 
 -- Enable UUID extension for primary keys
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -13,6 +17,14 @@ CREATE TABLE jobs (
     deadline DATE NOT NULL,
     salary TEXT,
     source_link TEXT,
+    vacancies INT,
+    qualification TEXT,
+    advertisement_no TEXT,
+    -- Minimum accepted study level, derived from qualification by education_level_for().
+    education_level TEXT CHECK (education_level IS NULL OR education_level IN
+        ('10th', '12th', 'ITI', 'Diploma', 'Graduate', 'PostGraduate')),
+    -- Place name from the source detail page, normalised by location_name().
+    location TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -35,18 +47,27 @@ CREATE TABLE documents_required (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Learning Resources table: Stores PDFs, AI tests, and other resources
+-- Learning Resources table: Stores PDFs, AI tests, and other resources.
+-- job_id is nullable: a NULL row is a general resource shown from the Practice tab.
 CREATE TABLE learning_resources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    job_id UUID REFERENCES jobs(id) ON DELETE CASCADE,
     resource_type TEXT NOT NULL CHECK (resource_type IN ('PDF', 'AI_Test', 'Video', 'Link')),
     link_or_content TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    language TEXT CHECK (language IS NULL OR language IN ('en', 'gu', 'hi')),
+    topic TEXT CHECK (topic IS NULL OR topic IN
+        ('gk', 'math', 'reasoning', 'gujarati', 'english', 'current')),
+    sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Indexes for better query performance
 CREATE INDEX idx_jobs_department ON jobs(department);
 CREATE INDEX idx_jobs_deadline ON jobs(deadline);
+CREATE INDEX idx_jobs_education_level ON jobs(education_level);
+CREATE INDEX idx_jobs_location ON jobs(location);
 CREATE INDEX idx_job_details_job_id ON job_details(job_id);
 CREATE INDEX idx_documents_required_job_id ON documents_required(job_id);
 CREATE INDEX idx_learning_resources_job_id ON learning_resources(job_id);

@@ -89,10 +89,15 @@ echo "==> Home screen"
 "${AB[@]}" open "$BASE/" >/dev/null
 check_text "Rojgar Mitra" "home shows app name"
 check_text "What do you want to do?" "home shows quick actions"
+check_text "Browse by category" "home shows education shortcuts"
 
 # Live data: the home list must render a real job card from the database, not the empty or
 # offline state. "Last Date" appears only on a job card, so it proves the query path works.
 check_text "Last Date" "home shows live job cards from the database"
+
+# The shortcut must carry its filter into the jobs screen, not just navigate to it.
+"${AB[@]}" find text "Graduate" click >/dev/null 2>&1 || fail "education shortcut not tappable"
+check_text "Clear filters" "education shortcut opens a filtered jobs list"
 
 echo "==> Accessibility audit (home)"
 A11Y="$("${AB[@]}" a11y "$BASE/" --json 2>/dev/null || echo '{}')"
@@ -110,6 +115,14 @@ echo "==> Tab navigation (in-app, like a real user)"
 # Static export serves only index.html; routes are client-side, so tabs are tapped in-app.
 "${AB[@]}" find text "Practice" click >/dev/null 2>&1 || fail "practice tab not tappable"
 check_text "Practice Test" "practice tab opens practice screen"
+
+echo "==> Study material"
+check_text "Study material" "practice screen links to study material"
+"${AB[@]}" find text "Study material" click >/dev/null 2>&1 || fail "study material not tappable"
+check_text "Practice tests" "study material lists practice tests"
+check_text "PDF documents" "study material lists official PDFs"
+check_text "Official websites" "study material lists official links"
+"${AB[@]}" find text "Back" click >/dev/null 2>&1 || fail "study material has no back control"
 
 "${AB[@]}" find text "Settings" click >/dev/null 2>&1 || fail "settings tab not tappable"
 check_text "Language" "settings tab opens settings screen"

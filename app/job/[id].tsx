@@ -8,9 +8,11 @@ import {
   getDocumentsRequired,
   getJobById,
   getJobDetails,
+  getJobLearningResources,
   DocumentRequired,
   Job,
   JobDetail,
+  LearningResource,
 } from '../../lib/supabase';
 import { formatDate } from '../../lib/deadline';
 import { isSafeWebUrl } from '../../lib/url';
@@ -34,6 +36,7 @@ export default function JobDetailScreen() {
   const [job, setJob] = useState<Job | null>(null);
   const [details, setDetails] = useState<JobDetail[]>([]);
   const [documents, setDocuments] = useState<DocumentRequired[]>([]);
+  const [resources, setResources] = useState<LearningResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [partialFailure, setPartialFailure] = useState(false);
@@ -44,15 +47,17 @@ export default function JobDetailScreen() {
     setFailed(false);
     setPartialFailure(false);
     try {
-      const [jobData, detailResult, docResult] = await Promise.allSettled([
+      const [jobData, detailResult, docResult, resourceResult] = await Promise.allSettled([
         getJobById(id),
         getJobDetails(id),
         getDocumentsRequired(id),
+        getJobLearningResources(id),
       ]);
       if (jobData.status === 'rejected') throw jobData.reason;
       setJob(jobData.value);
       setDetails(detailResult.status === 'fulfilled' ? detailResult.value : []);
       setDocuments(docResult.status === 'fulfilled' ? docResult.value : []);
+      setResources(resourceResult.status === 'fulfilled' ? resourceResult.value : []);
       setPartialFailure(detailResult.status === 'rejected' || docResult.status === 'rejected');
     } catch {
       setFailed(true);
@@ -147,6 +152,7 @@ export default function JobDetailScreen() {
           {job.vacancies != null ? (
             <Fact label={t('vacancies')} value={t('vacancyCount', { count: job.vacancies })} />
           ) : null}
+          {job.location ? <Fact label={t('location')} value={job.location} /> : null}
           {job.qualification ? <Fact label={t('qualification')} value={job.qualification} /> : null}
           {job.salary ? <Fact label={t('salary')} value={job.salary} /> : null}
           <Fact label={t('postDate')} value={formatDate(job.post_date, language, 'long')} />
@@ -220,11 +226,45 @@ export default function JobDetailScreen() {
           />
         </View>
 
+        <SectionHeading title={t('studyMaterial')} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t('studyMaterial')}. ${
+            resources.length > 0
+              ? t('resourceCount', { count: resources.length })
+              : t('studyMaterialHint')
+          }`}
+          onPress={() =>
+            router.push({
+              pathname: '/resources',
+              params: { jobId: job.id, jobTitle: job.title },
+            })
+          }
+          className="bg-card border border-rule rounded-card p-4 flex-row items-center active:opacity-80"
+        >
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="w-10 h-10 rounded-control border border-navy-line bg-navy-tint items-center justify-center"
+          >
+            <Ionicons name="library-outline" size={22} color={palette.navy} />
+          </View>
+          <View className="flex-1 ml-3 pr-2">
+            <Text className="text-body font-bold text-ink">{t('studyMaterial')}</Text>
+            <Text className="text-label text-ink-soft mt-0.5">
+              {resources.length > 0
+                ? t('resourceCount', { count: resources.length })
+                : t('studyMaterialHint')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+        </Pressable>
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${t('startPractice')}. ${t('quickPracticeHint')}`}
           onPress={() => router.push('/practice')}
-          className="bg-navy-tint border border-navy-line rounded-card p-4 flex-row items-center mt-1 active:opacity-80"
+          className="bg-navy-tint border border-navy-line rounded-card p-4 flex-row items-center mt-3 active:opacity-80"
         >
           <View
             accessibilityElementsHidden

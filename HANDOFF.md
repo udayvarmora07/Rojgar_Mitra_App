@@ -109,6 +109,103 @@ place. Visual evidence is in `design/references/`:
 
 ---
 
+## 0.1 Category shortcuts, education filtering, location and study material (2026-11-18)
+
+This pass closed the three PRD gaps that were still open after the redesign: home category
+shortcuts + education-level filtering (4.1/5.1), job location (5.3), and the learning-resource
+surface (7.1). It also took the English/Hindi/Gujarati setup to a checked production baseline;
+read `I18N.md` for that part.
+
+### What changed
+
+- **Education taxonomy (migrations 005).** Six canonical levels: `10th`, `12th`, `ITI`,
+  `Diploma`, `Graduate`, `PostGraduate`. `jobs.education_level` stores the *minimum* level the
+  advertisement accepts, derived by `education_level_for(qualification)` in an insert/update
+  trigger. "Diploma, ITI, 12TH, 10TH" is 10th; "B.Tech/B.E, Diploma" is Diploma; "Post
+  Graduate" is not counted as Graduate. The app never parses qualification text.
+- **Home category shortcuts.** `components/jobs/CategoryBoard.tsx` is one ruled index card
+  with a two-column grid of education levels that currently have open notices, plus an "All
+  departments" row. Each tile carries a live count and opens `/jobs?education=<level>`; the
+  department row opens the jobs filter sheet (`/jobs?filters=1`).
+- **Education filtering.** `lib/jobsFilter.ts` gained `education`, `countByEducationLevel()`
+  and a broader search haystack (title, department, qualification, level, location). The Jobs
+  screen shows education counts in the filter sheet alongside departments; the summary line
+  shows `Graduate · All departments`; the active-filter badge and clear-filters path include
+  the new dimension. `?education=` and `?filters=1` are read from the route.
+- **Job location (migrations 005, 007, 008).** `jobs.location` is populated from the
+  FreeJobAlert article page's `Job Location` row for *new* rows (the scraper fetches detail
+  pages only for links not already stored), then normalised to a place name by
+  `location_name()`. A department fallback (`location_for()`) maps statewide boards to
+  `Gujarat` and known institutions to their city. The job detail screen now shows a
+  `Location` fact when present.
+- **Learning resources (migration 006).** `learning_resources.job_id` is nullable; rows gained
+  `title`, `description`, `language`, `topic` and `sort_order`. Six `AI_Test` rows (one per
+  practice topic), four official links (GPSC, OJAS, GSSSB, GPSSB) and one live GSSSB rules PDF
+  are seeded — 11 rows in the hosted project. A partial unique index makes the seed and the
+  scraper idempotent.
+- **Study-material surface.** `app/resources.tsx` groups rows into Practice tests, PDF
+  documents, Videos and Official websites. AI_Test rows open the practice topic; external
+  rows use the existing `isSafeWebUrl` check. Reachable from the Practice tab and from every
+  job detail screen (which shows the job's own resource count when present). The list is
+  cached with the same stale-while-revalidate pattern as jobs.
+- **Resource pipeline.** `scraper-rs/src/resources.rs` reads the official GSSSB downloads
+  table and GPSSB previous-paper page, keeps only syllabus/rules/exam/paper links, and writes
+  them as general `PDF` resources. Gujarat Police was removed as a source: its page answers
+  the scraper user agent with a CAPTCHA wall, and the pipeline does not bypass that.
+- **Location data coverage.** Hosted project after the backfill: **78 of 94** advertisements
+  have a location; 16 remain `NULL` where the source is genuinely vague (TSU multi-campus,
+  ONGC, GSV, CMTI). Top cities: Gujarat 18, Gandhinagar 15, Surat 10, Ahmedabad 8, Dholera 4,
+  Rajkot 4.
+- **Education data coverage.** Graduate 44, PostGraduate 21, Diploma 8, 10th 5, 12th 1,
+  unknown 15. ITI is part of the taxonomy but currently has no live row.
+- **Localization.** `expo-localization` realigned from `55.0.13` to the SDK 54 version
+  `17.0.9`, and the remaining Expo packages were aligned to their SDK 54 patch versions
+  (`expo` 54.0.37, `expo-constants` 18.0.14, `expo-linking` 8.0.12, `expo-router` 6.0.24);
+  `npx expo install --check` is clean. `expo-font`, `expo-asset` and `babel-preset-expo` are
+  explicit pins: without them npm hoisted an SDK 55 `expo-font` for `@expo/vector-icons` and
+  Babel could not resolve its preset. Numeric placeholders now use i18next's built-in
+  `{{count, number}}` formatter, so vacancies and counts read `3,047` / `1,234` in all three
+  languages. Departments sort with `Intl.Collator`; dates fall back to `18 Nov 2026` instead
+  of a raw ISO string when a locale's `Intl` data is missing. `t()` keys are compile-time
+  checked via `i18next.d.ts` and the `TranslationKey` union.
+- **Docs.** `I18N.md` is new. `scripts/sync-db.sh` now regenerates `lib/database.types.ts`
+  from the hosted project ref in `supabase/config.toml`.
+
+### Verified in this session
+
+Migrations 005–008 were applied to the hosted project with
+`supabase db query --remote=<ref> -f <migration>` because this checkout's CLI had no linked
+project ref. Every one of those files is idempotent, so a later `supabase db push` can safely
+re-run and record them.
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **12 suites, 100 tests pass** |
+| Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass: home category shortcut → filtered jobs, Practice → Study material → Practice tests / PDFs / Official websites, Settings |
+| Four-tab axe | `bash scripts/a11y-audit.sh` | **0 critical, 0 serious** on Home / Jobs / Practice / Settings |
+| Study-material axe | agent-browser `a11y` on `/resources` | **0 critical, 0 serious** (one moderate `region` from the tab bar, same as the tabs) |
+| Rust | `cargo test --locked` | **22 tests** |
+| Rust lint | `cargo clippy --locked -- -D warnings` | clean |
+| Hosted schema | migrations 005–008 applied | columns, functions, trigger, seed and indexes present |
+
+### Open
+
+- The GPSSB previous-paper page timed out from this machine during the live run. Its parser is
+  fixture-tested and the source is best-effort; the daily job will pick it up when reachable.
+- No native device screenshots this session. The new category board, education sheet and
+  study-material screen were verified in a 390×844 browser. Check them in Expo Go or on a
+  device before release, especially the category grid at the bottom of Home.
+- A native Gujarati/Hindi speaker should still review the new copy; `I18N.md` §5 explains why
+  that is the remaining point on the localization score.
+- `npm audit` still reports advisories in Metro/Expo build-time transitives (`shell-quote`,
+  `ws`, `source-map-js`). There is no non-breaking fix; `npm audit fix --force` would move
+  packages past the SDK 54 ranges and is deliberately not applied. None of these are in the
+  exported client bundle.
+
+---
+
 ## 1. What this project is
 
 A Gujarat government-jobs app for farmers and rural youth with low technical literacy. It

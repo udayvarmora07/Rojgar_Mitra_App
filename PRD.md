@@ -271,10 +271,11 @@
 
 | Table | Columns | Purpose |
 |-------|---------|---------|
-| `jobs` | id, title, department, post_date, deadline, salary, source_link, created_at, updated_at | Job postings |
+| `jobs` | id, title, department, post_date, deadline, salary, source_link, vacancies, qualification, advertisement_no, education_level, location, created_at, updated_at | Job postings. `education_level` is the minimum accepted level, derived from `qualification`; `location` is a place name when the source states one |
 | `job_details` | id, job_id (FK), age_limit, required_qualifications, application_fees, created_at | Eligibility info |
 | `documents_required` | id, job_id (FK), document_name, phase ('Application'|'Exam Center'), created_at | Document checklists |
-| `learning_resources` | id, job_id (FK), resource_type ('PDF'|'AI_Test'|'Video'|'Link'), link_or_content, created_at | Study materials |
+| `learning_resources` | id, job_id (FK, nullable), resource_type ('PDF'|'AI_Test'|'Video'|'Link'), link_or_content, title, description, language, topic, sort_order, created_at | Study materials. A NULL job_id is a general resource visible from the Practice tab |
+| `practice_questions` | id, topic, language, subtopic, question, options, correct, explanation, model, created_at | Pre-generated practice pool read by `get_practice_questions()` |
 
 ### 7.2 Row Level Security
 - All tables: Public read access (anyone can read)
@@ -470,6 +471,7 @@ Rojgar_Mitra_App/
 | 1.0 | 2026-04-22 | Initial PRD created |
 | 1.1 | 2026-04-22 | Updated with current codebase structure |
 | 1.2 | 2026-11-05 | Hindi added; LLM switched to DeepSeek V4.1 Flash (Command Code) behind the `generate-test` Edge Function; offline-first jobs/tests; eligibility & document checklists built |
+| 1.3 | 2026-11-18 | Home education shortcuts and education filter; job location; study-material surface backed by a GSSSB/GPSSB resource scraper; locale-aware number/date formatting for English, Gujarati and Hindi |
 
 ---
 

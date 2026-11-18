@@ -21,12 +21,15 @@ jest.mock("expo-router", () => ({
 const mockGetJobById = jest.fn();
 const mockGetJobDetails = jest.fn();
 const mockGetDocumentsRequired = jest.fn();
+const mockGetJobLearningResources = jest.fn();
 
 jest.mock("../lib/supabase", () => ({
   getJobById: (...args: unknown[]) => mockGetJobById(...args),
   getJobDetails: (...args: unknown[]) => mockGetJobDetails(...args),
   getDocumentsRequired: (...args: unknown[]) =>
     mockGetDocumentsRequired(...args),
+  getJobLearningResources: (...args: unknown[]) =>
+    mockGetJobLearningResources(...args),
 }));
 
 import i18n from "../lib/i18n";
@@ -40,6 +43,11 @@ const job = {
   deadline: "2099-01-01",
   salary: null,
   source_link: null,
+  vacancies: null,
+  qualification: "Graduate",
+  advertisement_no: null,
+  education_level: "Graduate",
+  location: "Gandhinagar",
 };
 
 beforeEach(async () => {
@@ -47,6 +55,7 @@ beforeEach(async () => {
   mockGetJobById.mockReset().mockResolvedValue(job);
   mockGetJobDetails.mockReset().mockResolvedValue([]);
   mockGetDocumentsRequired.mockReset().mockResolvedValue([]);
+  mockGetJobLearningResources.mockReset().mockResolvedValue([]);
   await i18n.changeLanguage("en");
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -76,7 +85,30 @@ describe("Job detail screen", () => {
         "No eligibility information yet. Please read the official notification.",
       ),
     ).toBeTruthy();
+    expect(screen.getByText("Location")).toBeTruthy();
+    expect(screen.getByText("Gandhinagar")).toBeTruthy();
+    expect(screen.getAllByText("Study material").length).toBeGreaterThan(0);
     expect(screen.queryByText("Could not load jobs")).toBeNull();
+  });
+
+  it("shows the job's resource count when study material exists", async () => {
+    mockGetJobLearningResources.mockResolvedValue([
+      {
+        id: "resource-1",
+        job_id: "job-1",
+        resource_type: "PDF",
+        link_or_content: "https://example.com/syllabus.pdf",
+        title: "Syllabus",
+        description: null,
+        language: null,
+        topic: null,
+        sort_order: 30,
+        created_at: "",
+      },
+    ]);
+    render(<JobDetailScreen />);
+
+    await waitFor(() => expect(screen.getByText("1 resource for this job")).toBeTruthy());
   });
 
   it("retries the whole load when the user taps Try Again", async () => {

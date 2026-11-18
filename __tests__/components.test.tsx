@@ -103,6 +103,8 @@ describe('JobCard', () => {
       vacancies: null,
       qualification: null,
       advertisement_no: null,
+      education_level: null,
+      location: null,
       salary: '₹19,950',
       source_link: null,
       created_at: '',

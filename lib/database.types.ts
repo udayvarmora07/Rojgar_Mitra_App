@@ -1,5 +1,5 @@
-// Auto-generated Supabase database types
-// These types are based on the schema in supabase_schema.sql
+// Generated from the Supabase schema. Do not edit by hand.
+// Regenerate: supabase gen types typescript --remote=<project-ref> --schema public > lib/database.types.ts
 
 export type Json =
   | string
@@ -9,175 +9,376 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.18"
+  }
   public: {
     Tables: {
-      jobs: {
+      documents_required: {
         Row: {
-          id: string
-          title: string
-          department: string
-          post_date: string
-          deadline: string
-          salary: string | null
-          source_link: string | null
-          vacancies: number | null
-          qualification: string | null
-          advertisement_no: string | null
           created_at: string
-          updated_at: string | null
+          document_name: string
+          id: string
+          job_id: string
+          phase: string
         }
         Insert: {
-          id?: string
-          title: string
-          department: string
-          post_date: string
-          deadline: string
-          salary?: string | null
-          source_link?: string | null
           created_at?: string
-          updated_at?: string | null
+          document_name: string
+          id?: string
+          job_id: string
+          phase: string
         }
         Update: {
-          id?: string
-          title?: string
-          department?: string
-          post_date?: string
-          deadline?: string
-          salary?: string | null
-          source_link?: string | null
           created_at?: string
-          updated_at?: string | null
+          document_name?: string
+          id?: string
+          job_id?: string
+          phase?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_required_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       job_details: {
         Row: {
-          id: string
-          job_id: string
           age_limit: string
-          required_qualifications: string
           application_fees: string | null
           created_at: string
-        }
-        Insert: {
-          id?: string
-          job_id: string
-          age_limit: string
-          required_qualifications: string
-          application_fees?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          job_id?: string
-          age_limit?: string
-          required_qualifications?: string
-          application_fees?: string | null
-          created_at?: string
-        }
-        Relationships: {
-          foreignKeyName: "job_details_job_id_fkey"
-          columns: ["job_id"]
-          isMany: false
-          isUnique: false
-          referencedRelation: "jobs"
-          referencedColumns: ["id"]
-        }[]
-      }
-      documents_required: {
-        Row: {
           id: string
           job_id: string
-          document_name: string
-          phase: "Application" | "Exam Center"
-          created_at: string
+          required_qualifications: string
         }
         Insert: {
+          age_limit: string
+          application_fees?: string | null
+          created_at?: string
           id?: string
           job_id: string
-          document_name: string
-          phase: "Application" | "Exam Center"
-          created_at?: string
+          required_qualifications: string
         }
         Update: {
+          age_limit?: string
+          application_fees?: string | null
+          created_at?: string
           id?: string
           job_id?: string
-          document_name?: string
-          phase?: "Application" | "Exam Center"
-          created_at?: string
+          required_qualifications?: string
         }
-        Relationships: {
-          foreignKeyName: "documents_required_job_id_fkey"
-          columns: ["job_id"]
-          isMany: false
-          isUnique: false
-          referencedRelation: "jobs"
-          referencedColumns: ["id"]
-        }[]
+        Relationships: [
+          {
+            foreignKeyName: "job_details_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          advertisement_no: string | null
+          created_at: string
+          deadline: string
+          department: string
+          education_level: string | null
+          id: string
+          location: string | null
+          post_date: string
+          qualification: string | null
+          salary: string | null
+          source_link: string | null
+          title: string
+          updated_at: string | null
+          vacancies: number | null
+        }
+        Insert: {
+          advertisement_no?: string | null
+          created_at?: string
+          deadline: string
+          department: string
+          education_level?: string | null
+          id?: string
+          location?: string | null
+          post_date: string
+          qualification?: string | null
+          salary?: string | null
+          source_link?: string | null
+          title: string
+          updated_at?: string | null
+          vacancies?: number | null
+        }
+        Update: {
+          advertisement_no?: string | null
+          created_at?: string
+          deadline?: string
+          department?: string
+          education_level?: string | null
+          id?: string
+          location?: string | null
+          post_date?: string
+          qualification?: string | null
+          salary?: string | null
+          source_link?: string | null
+          title?: string
+          updated_at?: string | null
+          vacancies?: number | null
+        }
+        Relationships: []
       }
       learning_resources: {
         Row: {
-          id: string
-          job_id: string
-          resource_type: "PDF" | "AI_Test" | "Video" | "Link"
-          link_or_content: string
           created_at: string
+          description: string | null
+          id: string
+          job_id: string | null
+          language: string | null
+          link_or_content: string
+          resource_type: string
+          sort_order: number
+          title: string
+          topic: string | null
         }
         Insert: {
-          id?: string
-          job_id: string
-          resource_type: "PDF" | "AI_Test" | "Video" | "Link"
-          link_or_content: string
           created_at?: string
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          language?: string | null
+          link_or_content: string
+          resource_type: string
+          sort_order?: number
+          title: string
+          topic?: string | null
         }
         Update: {
-          id?: string
-          job_id?: string
-          resource_type?: "PDF" | "AI_Test" | "Video" | "Link"
-          link_or_content?: string
           created_at?: string
+          description?: string | null
+          id?: string
+          job_id?: string | null
+          language?: string | null
+          link_or_content?: string
+          resource_type?: string
+          sort_order?: number
+          title?: string
+          topic?: string | null
         }
-        Relationships: {
-          foreignKeyName: "learning_resources_job_id_fkey"
-          columns: ["job_id"]
-          isMany: false
-          isUnique: false
-          referencedRelation: "jobs"
-          referencedColumns: ["id"]
-        }[]
+        Relationships: [
+          {
+            foreignKeyName: "learning_resources_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_questions: {
+        Row: {
+          correct: string
+          created_at: string
+          explanation: string
+          id: string
+          language: string
+          model: string | null
+          options: Json
+          question: string
+          subtopic: string | null
+          topic: string
+        }
+        Insert: {
+          correct: string
+          created_at?: string
+          explanation?: string
+          id?: string
+          language: string
+          model?: string | null
+          options: Json
+          question: string
+          subtopic?: string | null
+          topic: string
+        }
+        Update: {
+          correct?: string
+          created_at?: string
+          explanation?: string
+          id?: string
+          language?: string
+          model?: string | null
+          options?: Json
+          question?: string
+          subtopic?: string | null
+          topic?: string
+        }
+        Relationships: []
       }
     }
     Views: {
-      [_ in string]: never
+      [_ in never]: never
     }
     Functions: {
+      education_level_for: { Args: { qualification: string }; Returns: string }
       get_practice_questions: {
-        Args: { p_topic: string; p_language: string; p_count?: number }
+        Args: { p_count?: number; p_language: string; p_topic: string }
         Returns: {
-          id: string
-          topic: string
-          language: string
-          subtopic: string | null
-          question: string
-          options: Json
           correct: string
-          explanation: string
-          model: string | null
           created_at: string
+          explanation: string
+          id: string
+          language: string
+          model: string | null
+          options: Json
+          question: string
+          subtopic: string | null
+          topic: string
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "practice_questions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
+      location_for: { Args: { department: string }; Returns: string }
+      location_name: { Args: { raw: string }; Returns: string }
     }
     Enums: {
-      [_ in string]: never
+      [_ in never]: never
     }
     CompositeTypes: {
-      [_ in string]: never
+      [_ in never]: never
     }
   }
 }
 
-// Table type helpers
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
-export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
-export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

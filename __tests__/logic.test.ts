@@ -20,6 +20,8 @@ function job(partial: Partial<Job>): Job {
     vacancies: null,
     qualification: null,
     advertisement_no: null,
+    education_level: null,
+    location: null,
     created_at: '2026-10-01T00:00:00Z',
     updated_at: null,
     ...partial,

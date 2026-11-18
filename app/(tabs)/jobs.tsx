@@ -12,12 +12,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { useJobs } from '../../hooks/useJobs';
 import {
+  countByEducationLevel,
   DeadlineFilter,
   filterJobs,
   listDepartments,
   NO_FILTERS,
   JobFilters,
 } from '../../lib/jobsFilter';
+import {
+  EDUCATION_LEVELS,
+  educationLabelKey,
+  isEducationLevel,
+} from '../../constants/education';
 import { Masthead } from '../../components/ui/Masthead';
 import { LanguageToggle } from '../../components/ui/LanguagePicker';
 import { JobCard } from '../../components/jobs/JobCard';
@@ -27,22 +33,30 @@ import { Banner, EmptyState, LoadingState } from '../../components/ui/States';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Mono } from '../../components/ui/Mono';
 import { Screen } from '../../components/ui/Screen';
+import { useLanguage } from '../../hooks/useLanguage';
 import { palette } from '../../constants/theme';
 
 export default function JobsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { jobs, loading, refreshing, offline, refresh } = useJobs();
-  const params = useLocalSearchParams<{ deadline?: string }>();
+  const params = useLocalSearchParams<{
+    deadline?: string;
+    education?: string;
+    filters?: string;
+  }>();
 
   const [filters, setFilters] = useState<JobFilters>(() => ({
     ...NO_FILTERS,
     deadline: params.deadline === 'closingSoon' ? 'closingSoon' : 'all',
+    education: isEducationLevel(params.education) ? params.education : null,
   }));
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(params.filters === '1');
   const [departmentQuery, setDepartmentQuery] = useState('');
+  const { language } = useLanguage();
 
-  // Home can link here with a deadline already chosen; keep the control in sync.
+  // Home can link here with a deadline or education level already chosen; keep the
+  // controls in sync if the route changes while the screen is mounted.
   useEffect(() => {
     const next = params.deadline;
     if (next === 'closingSoon' || next === 'open' || next === 'all') {
@@ -50,9 +64,17 @@ export default function JobsScreen() {
     }
   }, [params.deadline]);
 
+  useEffect(() => {
+    const next = params.education;
+    if (isEducationLevel(next)) {
+      setFilters((f) => (f.education === next ? f : { ...f, education: next }));
+    }
+  }, [params.education]);
+
   const live = useMemo(() => filterJobs(jobs, NO_FILTERS), [jobs]);
   const visible = useMemo(() => filterJobs(jobs, filters), [jobs, filters]);
-  const departments = useMemo(() => listDepartments(jobs), [jobs]);
+  const departments = useMemo(() => listDepartments(jobs, language), [jobs, language]);
+  const educationCounts = useMemo(() => countByEducationLevel(live), [live]);
   const departmentCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const job of live) counts.set(job.department, (counts.get(job.department) ?? 0) + 1);
@@ -66,8 +88,14 @@ export default function JobsScreen() {
   }, [departments, departmentQuery]);
 
   const hasFilters =
-    filters.department !== null || filters.deadline !== 'all' || filters.query.trim() !== '';
-  const activeFilterCount = (filters.department ? 1 : 0) + (filters.deadline !== 'all' ? 1 : 0);
+    filters.department !== null ||
+    filters.education !== null ||
+    filters.deadline !== 'all' ||
+    filters.query.trim() !== '';
+  const activeFilterCount =
+    (filters.department ? 1 : 0) +
+    (filters.education ? 1 : 0) +
+    (filters.deadline !== 'all' ? 1 : 0);
 
   const deadlineChips: { value: DeadlineFilter; label: string }[] = [
     { value: 'all', label: t('filterAll') },
@@ -121,7 +149,11 @@ export default function JobsScreen() {
         />
         <View className="flex-row items-center justify-between mt-2">
           <Text className="text-label text-ink-soft flex-1 pr-2" numberOfLines={1}>
-            {filters.department ?? t('allDepartments')}
+            {filters.education
+              ? `${t(educationLabelKey(filters.education))} · ${
+                  filters.department ?? t('allDepartments')
+                }`
+              : (filters.department ?? t('allDepartments'))}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -202,7 +234,7 @@ export default function JobsScreen() {
 
       <BottomSheet
         visible={sheetOpen}
-        title={t('department')}
+        title={t('filters')}
         closeLabel={t('close')}
         onClose={() => setSheetOpen(false)}
         footer={
@@ -225,6 +257,30 @@ export default function JobsScreen() {
           </View>
         }
       >
+        <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute mb-2">
+          {t('educationLevel')}
+        </Text>
+        <FilterRow
+          label={t('allEducationLevels')}
+          count={live.length}
+          selected={filters.education === null}
+          onPress={() => setFilters((f) => ({ ...f, education: null }))}
+        />
+        {EDUCATION_LEVELS.map((level) => (
+          <FilterRow
+            key={level.value}
+            label={t(level.labelKey)}
+            count={educationCounts[level.value]}
+            selected={filters.education === level.value}
+            onPress={() => setFilters((f) => ({ ...f, education: level.value }))}
+          />
+        ))}
+
+        <View className="h-px bg-rule my-3" />
+
+        <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute mb-2">
+          {t('department')}
+        </Text>
         <View className="flex-row items-center bg-paper rounded-control border border-rule px-3 min-h-[52px] mb-3">
           <Ionicons name="search" size={20} color={palette.inkSoft} />
           <TextInput
@@ -239,14 +295,14 @@ export default function JobsScreen() {
           />
         </View>
 
-        <DepartmentRow
+        <FilterRow
           label={t('allDepartments')}
           count={live.length}
           selected={filters.department === null}
           onPress={() => selectDepartment(null)}
         />
         {shownDepartments.map((department) => (
-          <DepartmentRow
+          <FilterRow
             key={department}
             label={department}
             count={departmentCounts.get(department) ?? 0}
@@ -298,7 +354,7 @@ function SearchBox({
   );
 }
 
-function DepartmentRow({
+function FilterRow({
   label,
   count,
   selected,

@@ -11,6 +11,7 @@ import { QUESTIONS_PER_TEST, TEST_CATEGORIES } from '../../constants/testCategor
 import { palette } from '../../constants/theme';
 import { loadHistory, TestRecord } from '../../lib/testHistory';
 import { formatDate } from '../../lib/deadline';
+import { formatScore } from '../../lib/format';
 import { useLanguage } from '../../hooks/useLanguage';
 import { Mono } from '../../components/ui/Mono';
 import { EmptyState } from '../../components/ui/States';
@@ -119,6 +120,26 @@ export default function PracticeScreen() {
           ))}
         </View>
 
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t('studyMaterial')}. ${t('studyMaterialHint')}`}
+          onPress={() => router.push('/resources')}
+          className="bg-card border border-rule rounded-card p-4 flex-row items-center mt-1 mb-2 active:opacity-80"
+        >
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
+          >
+            <Ionicons name="library-outline" size={22} color={palette.navy} />
+          </View>
+          <View className="flex-1 ml-3 pr-2">
+            <Text className="text-body font-bold text-ink">{t('studyMaterial')}</Text>
+            <Text className="text-label text-ink-soft mt-0.5">{t('studyMaterialHint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+        </Pressable>
+
         <SectionHeading title={t('history')} count={history.length} />
 
         {history.length === 0 ? (
@@ -128,11 +149,12 @@ export default function PracticeScreen() {
             {history.slice(0, 5).map((record, index) => {
               const percent = record.total ? Math.round((record.score / record.total) * 100) : 0;
               const good = percent >= 60;
+              const scoreLabel = formatScore(record.score, record.total, language);
               return (
                 <View
                   key={record.id}
                   accessible
-                  accessibilityLabel={`${labelFor(record.topic)}: ${record.score} / ${record.total}`}
+                  accessibilityLabel={`${labelFor(record.topic)}: ${scoreLabel}`}
                   className={`px-4 py-3 flex-row items-center ${index > 0 ? 'border-t border-rule' : ''}`}
                 >
                   <View className="flex-1 pr-3">
@@ -148,7 +170,7 @@ export default function PracticeScreen() {
                   </View>
                   <View className="items-end w-[86px]">
                     <Mono className={`text-title font-bold ${good ? 'text-success' : 'text-stamp'}`}>
-                      {record.score}/{record.total}
+                      {scoreLabel}
                     </Mono>
                     <View className="h-1 w-full bg-rule rounded-full mt-1 overflow-hidden">
                       <View

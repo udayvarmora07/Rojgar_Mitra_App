@@ -1,5 +1,10 @@
+import type { TranslationShape } from '../lib/locales/en';
+
 export type DocPhase = 'application' | 'exam';
 export type DbDocPhase = 'Application' | 'Exam Center';
+
+/** Keys of the `docs` dictionary; a checklist item cannot point at a missing label. */
+export type DocKey = keyof TranslationShape['docs'];
 
 export const PHASE_TO_DB: Record<DocPhase, DbDocPhase> = {
   application: 'Application',
@@ -11,7 +16,7 @@ export function isDocPhase(value: unknown): value is DocPhase {
 }
 
 /** `nameKey` / `descKey` resolve through i18n (`docs.<key>.name` / `docs.<key>.desc`). */
-export type ChecklistTemplate = { key: string };
+export type ChecklistTemplate = { key: DocKey };
 
 export const DEFAULT_DOCUMENTS: Record<DocPhase, ChecklistTemplate[]> = {
   application: [

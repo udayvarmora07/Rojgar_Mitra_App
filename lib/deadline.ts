@@ -32,6 +32,27 @@ export function deadlineStatus(deadline: string, now: Date = new Date()): Deadli
   return 'open';
 }
 
+const MONTHS_EN_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+const MONTHS_EN_LONG = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+const WEEKDAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * A deterministic fallback for engines without this locale's `Intl` data. It keeps the
+ * product's date order (`18 Nov 2026`) instead of falling back to a raw ISO string.
+ */
+function fallbackDate(date: Date, style: 'short' | 'long'): string {
+  const months = style === 'long' ? MONTHS_EN_LONG : MONTHS_EN_SHORT;
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
+
 export function formatDate(
   value: string,
   language: Language,
@@ -46,7 +67,7 @@ export function formatDate(
       year: 'numeric',
     });
   } catch {
-    return value;
+    return fallbackDate(date, style);
   }
 }
 
@@ -65,6 +86,11 @@ export function dateParts(value: string, language: Language): DateParts | null {
       weekday: date.toLocaleDateString(locale, { weekday: 'short' }),
     };
   } catch {
-    return null;
+    return {
+      day: String(date.getDate()),
+      month: MONTHS_EN_SHORT[date.getMonth()],
+      year: String(date.getFullYear()),
+      weekday: WEEKDAYS_EN[date.getDay()],
+    };
   }
 }

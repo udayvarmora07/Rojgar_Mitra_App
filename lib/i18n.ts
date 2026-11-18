@@ -1,10 +1,10 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import * as Localization from 'expo-localization';
 import en from './locales/en';
 import gu from './locales/gu';
 import hi from './locales/hi';
 import { DEFAULT_LANGUAGE, isLanguage, Language, toLanguage } from '../constants/languages';
+import { getDeviceLanguage } from './deviceLanguage';
 import { readString, writeString, STORAGE_KEYS } from './storage';
 
 export const resources = {
@@ -13,19 +13,17 @@ export const resources = {
   hi: { translation: hi },
 } as const;
 
-function getDeviceLanguage(): Language {
-  try {
-    const locales = Localization.getLocales();
-    return toLanguage(locales?.[0]?.languageCode);
-  } catch {
-    return DEFAULT_LANGUAGE;
-  }
-}
-
+/**
+ * Counts and scores are interpolated with i18next's built-in `number` formatter
+ * (`{{count, number}}`), which uses `Intl.NumberFormat` for the active language. That keeps
+ * Indian digit grouping (`1,234`) in every language without a custom hook.
+ */
 if (!i18n.isInitialized) {
   i18n.use(initReactI18next).init({
     resources,
     lng: getDeviceLanguage(),
+    // i18next resolves `gu-IN` -> `gu` and `hi-IN` -> `hi` on its own; `supportedLngs`
+    // keeps an unsupported device locale from selecting a half-translated fallback chain.
     fallbackLng: DEFAULT_LANGUAGE,
     supportedLngs: ['en', 'gu', 'hi'],
     interpolation: { escapeValue: false },
