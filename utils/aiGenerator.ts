@@ -28,8 +28,32 @@ const REQUEST_TIMEOUT_MS = 60_000;
 // A pool read is a single indexed query; it must never feel slow.
 const POOL_TIMEOUT_MS = 4_000;
 
+// Display ceilings, kept in step with supabase/functions/generate-test/policy.ts and
+// generator/generate_questions.py. The pool can still hold rows generated before the policy,
+// so they are filtered here instead of filling the screen. A pool test may therefore be a few
+// questions shorter than the full ten.
+export const QUESTION_MAX_CHARS = 160;
+export const OPTION_MAX_CHARS = 70;
+export const EXPLANATION_MAX_CHARS = 120;
+/** Below this, the pool is too thin and the AI path should supply a complete test. */
+export const MIN_POOL_QUESTIONS = 6;
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+/** Collapses newlines and runs of spaces so a "one-line" field cannot become a paragraph. */
+function oneLine(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+/** True when a question and its options fit one phone screen without scrolling the card. */
+export function fitsQuestionCard(q: Question): boolean {
+  return (
+    q.question.length <= QUESTION_MAX_CHARS &&
+    OPTION_KEYS.every((k) => q.options[k].length <= OPTION_MAX_CHARS) &&
+    q.explanation.length <= EXPLANATION_MAX_CHARS
+  );
 }
 
 /** Keeps only well-formed questions; throws if none survive. */
@@ -46,15 +70,15 @@ export function validateQuestions(input: unknown): Question[] {
     if (!OPTION_KEYS.includes(correct as OptionKey)) continue;
 
     valid.push({
-      question: q.question.trim(),
+      question: oneLine(q.question),
       options: {
-        A: String(q.options.A).trim(),
-        B: String(q.options.B).trim(),
-        C: String(q.options.C).trim(),
-        D: String(q.options.D).trim(),
+        A: oneLine(String(q.options.A)),
+        B: oneLine(String(q.options.B)),
+        C: oneLine(String(q.options.C)),
+        D: oneLine(String(q.options.D)),
       },
       correct: correct as OptionKey,
-      explanation: isNonEmptyString(q.explanation) ? q.explanation.trim() : '',
+      explanation: isNonEmptyString(q.explanation) ? oneLine(q.explanation) : '',
     });
   }
 
@@ -106,7 +130,11 @@ export async function generatePracticeTest(
   );
   if (error) throw error;
 
-  const questions = validateQuestions(data);
+  // The deployed function enforces the same ceiling; filtering here also protects against an
+  // older deployment and keeps the cache free of screen-filling questions.
+  const questions = validateQuestions(data).filter(fitsQuestionCard);
+  if (questions.length === 0) throw new Error('AI returned no questions that fit the screen');
+
   const result: TestGenerationResult = {
     questions,
     language,
@@ -145,7 +173,8 @@ export async function loadPoolTest(
         supabase.rpc('get_practice_questions', {
           p_topic: topic,
           p_language: language,
-          p_count: QUESTIONS_PER_TEST,
+          // Ask for the widest sample the RPC allows so filtering still leaves a full test.
+          p_count: QUESTIONS_PER_TEST * 2,
         })
       ),
       POOL_TIMEOUT_MS
@@ -158,8 +187,7 @@ export async function loadPoolTest(
       correct: string;
       explanation: string | null;
     }[];
-    // A short pool would give a 3-question "test"; require the full length.
-    if (rows.length < QUESTIONS_PER_TEST) return null;
+    if (rows.length < MIN_POOL_QUESTIONS) return null;
 
     const questions = validateQuestions(
       rows.map((r) => ({
@@ -168,9 +196,15 @@ export async function loadPoolTest(
         correct: r.correct,
         explanation: r.explanation ?? '',
       }))
-    );
+    )
+      .filter(fitsQuestionCard)
+      .slice(0, QUESTIONS_PER_TEST);
+
+    // A very thin pool would give a 3-question "test"; let the AI path fill a real one.
+    if (questions.length < MIN_POOL_QUESTIONS) return null;
+
     return {
-      questions: questions.slice(0, QUESTIONS_PER_TEST),
+      questions,
       language,
       topic,
       generatedAt: new Date().toISOString(),
@@ -210,7 +244,8 @@ export async function loadPracticeTest(
   );
   if (cached) {
     try {
-      return { ...cached, questions: validateQuestions(cached.questions), source: 'cache' };
+      const questions = validateQuestions(cached.questions).filter(fitsQuestionCard);
+      if (questions.length > 0) return { ...cached, questions, source: 'cache' };
     } catch {
       // Corrupt cache - fall through to the bank.
     }

@@ -14,6 +14,8 @@
 //
 // Any OpenAI-compatible provider works by changing LLM_BASE_URL / LLM_MODEL.
 
+import { extractQuestions, OPTION_KEYS, type Question } from './policy.ts';
+
 const LLM_BASE_URL = (Deno.env.get('LLM_BASE_URL') ?? 'https://api.commandcode.ai/provider/v1').replace(/\/+$/, '');
 const LLM_MODEL = Deno.env.get('LLM_MODEL') ?? 'deepseek/deepseek-v4.1-flash';
 
@@ -83,7 +85,7 @@ const SYLLABUS: Record<string, { area: string; subtopics: string[] }> = {
 const QUESTION_STYLES = [
   'direct one-line question',
   'statement-based: "Which of the following statements is correct / NOT correct?"',
-  'match the pairs, where each option lists a full set of pairings',
+  'match the pairs, with at most two pairs in each option',
   'odd one out',
   'fill in the blank',
 ];
@@ -109,7 +111,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
 
 // A single call asking for 10 questions of Gujarati/Hindi makes the model reason for
 // 6-8k tokens and blows past any sane request timeout (measured: >55 s, always a timeout).
@@ -155,6 +156,12 @@ Options are shuffled after you answer, so NEVER write options that refer to othe
 Only use facts you are certain are correct and not time-sensitive; avoid events from the last two years.
 The explanation is one short sentence that teaches why the answer is right; it must not mention option letters.
 
+LENGTH RULES - the app shows the whole item on one phone screen, so keep every field short:
+- The question is ONE sentence of at most 120 characters. Never write a paragraph, numbered parts, or a long list of pairs.
+- Each option is at most 50 characters. In a match-the-pairs question an option may list at most two pairs.
+- The explanation is at most 90 characters.
+If a fact cannot fit inside these limits, ask a simpler question instead.
+
 Output ONLY valid, parseable JSON - no markdown, no commentary - in exactly this shape:
 {"questions":[{"question":"...","options":{"A":"...","B":"...","C":"...","D":"..."},"correct":"A","explanation":"..."}]}`;
 }
@@ -176,13 +183,6 @@ function shuffleOptions(q: Question): Question {
   });
   return { ...q, options, correct };
 }
-
-type Question = {
-  question: string;
-  options: Record<(typeof OPTION_KEYS)[number], string>;
-  correct: (typeof OPTION_KEYS)[number];
-  explanation: string;
-};
 
 /** One LLM round-trip. Returns only well-formed questions; never throws. */
 async function fetchBatch(
@@ -232,38 +232,6 @@ async function fetchBatch(
   }
 }
 
-function extractQuestions(raw: string): Question[] {
-  const text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```(?:json)?/gi, '').trim();
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end <= start) throw new Error('no JSON object in model output');
-  const parsed = JSON.parse(text.slice(start, end + 1));
-  const list: unknown[] = Array.isArray(parsed?.questions) ? parsed.questions : [];
-
-  return list.flatMap((item) => {
-    const q = item as Record<string, any>;
-    const correct = String(q?.correct ?? '').trim().toUpperCase();
-    const ok =
-      typeof q?.question === 'string' &&
-      q.question.trim() &&
-      OPTION_KEYS.every((k) => typeof q?.options?.[k] === 'string' && q.options[k].trim()) &&
-      (OPTION_KEYS as readonly string[]).includes(correct);
-    if (!ok) return [];
-    return [
-      {
-        question: q.question.trim(),
-        options: {
-          A: q.options.A.trim(),
-          B: q.options.B.trim(),
-          C: q.options.C.trim(),
-          D: q.options.D.trim(),
-        },
-        correct: correct as Question['correct'],
-        explanation: typeof q.explanation === 'string' ? q.explanation.trim() : '',
-      },
-    ];
-  });
-}
 
 // --- Caller authorization -------------------------------------------------
 // Deployed with verify_jwt = false: the platform check only understands legacy JWT keys,

@@ -94,9 +94,10 @@ place. Visual evidence is in `design/references/`:
   written.
 - **The generated AI question can be long** (e.g. a multi-part matching question fills the
   screen). The UI scrolls and keeps the footer pinned, but the content policy for prompt
-  length lives in `supabase/functions/generate-test`, not the UI. Worth tightening separately.
+  length lives in `supabase/functions/generate-test`, not the UI. **Fixed in §0.2.**
 - **Android hardware back / predictive back** was not exercised. The app still uses the
-  existing Expo Router stack; no navigation behavior was changed.
+  existing Expo Router stack; no navigation behavior was changed. **Audited in §0.2**; the
+  predictive-back flag remains off until a device can verify it.
 
 ### Resume prompt for a fresh session
 
@@ -203,6 +204,102 @@ re-run and record them.
   `ws`, `source-map-js`). There is no non-breaking fix; `npm audit fix --force` would move
   packages past the SDK 54 ranges and is deliberately not applied. None of these are in the
   exported client bundle.
+
+---
+
+## 0.2 List apply, document reminders, AI length policy, native audit (2026-11-18)
+
+This pass closed four of the five items left open after the redesign and the data/localization
+pass, and audited the fifth (the native pass), which still needs a device.
+
+### What changed
+
+- **Apply directly from the list (PRD 5.2).** `JobCard` gained an optional `onApply`. On the
+  Jobs list the card closes with a ruled Apply strip (`Apply Now - Official Website`) as a
+  sibling press target, never nested inside the notice button, so it is reachable on iOS.
+  It appears only for a notice with an `http(s)` `source_link` and only while the notice is
+  open. Home keeps the single-target card; the list is where the reader acts. The external
+  open logic now lives in `lib/externalLink.ts` and is shared with job detail.
+- **Document reminders (PRD 5.5).** `expo-notifications@0.32.17` schedules one local
+  notification a day at 09:00 while the general checklist has pending items. Everything is
+  local (no push token, no server). `components/documents/DocumentReminderPanel.tsx` is on
+  the Documents overview and handles four real states: on (shows `Every day at 9:00 AM`),
+  paused (all ready), permission blocked (with `Open phone settings`), and unsupported
+  (web build, disabled row that says so). The preference is stored at
+  `settings:documents-reminder:v1`; the schedule is replaced when the pending count or
+  language changes, and cancelled when nothing is pending. The Android channel
+  `document-reminders` is created before the Android 13 permission prompt.
+- **AI question-length policy.** `generate-test` now asks for ≤120 characters per question,
+  ≤50 per option and ≤90 per explanation, limits match-the-pairs to two pairs per option,
+  and enforces hard ceilings of 160/70/120 while collapsing newlines. A question that cannot
+  fit is dropped and the existing top-up logic asks for a replacement. Validation moved to
+  `supabase/functions/generate-test/policy.ts` so it has its own Deno tests.
+  The daily pool generator (`generator/generate_questions.py` + `syllabus.json`) got the same
+  prompt and parser policy, and the app now filters pool/cache rows with the same ceilings
+  (`fitsQuestionCard`, `MIN_POOL_QUESTIONS = 6`) so legacy long rows cannot fill the screen.
+  A pool test may therefore be 6–10 questions; the topic card now says `Up to 10 questions`.
+- **Cleanup.** `splitDepartments` / `MAX_VISIBLE_DEPARTMENTS` and the `showAllDepartments` /
+  `fewerDepartments` strings are gone. `getLearningResources` stays: it is surfaced through
+  `useLearningResources` on `/resources` (general and job-specific), not dead code.
+- **Native audit (code-level).** Bottom safe-area padding was added to every stack screen
+  that scrolls without a footer (`/resources`, `/documents`, `/documents/[phase]`,
+  `/eligibility/[jobId]`, practice results). `borderCurve` is now applied on every
+  non-capsule rounded surface through the `curve` token. BottomSheet already closes on
+  Android hardware back via `onRequestClose`; Expo Router's native stack owns back
+  navigation elsewhere. `predictiveBackGestureEnabled` stays **false**: React Native 0.81
+  has open back-dispatch bugs on API 35/36 and there is no device here to verify the
+  gesture, so it was not flipped blind.
+
+### Verified in this session
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **13 suites, 113 tests pass** |
+| Edge policy | `npx --yes deno test supabase/functions/generate-test/policy_test.ts` | **6 tests pass** |
+| Edge types | `npx --yes deno check .../index.ts .../policy.ts` | clean |
+| Pool generator | `./scraper/venv/bin/python -m unittest discover -s generator -p 'test_*.py'` | **13 tests pass** |
+| Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass: live jobs, education filter, **Apply strip**, Practice → Study material, Settings → **Documents → reminder panel**, home and documents axe |
+| Four-tab axe | `bash scripts/a11y-audit.sh` | **0 critical, 0 serious** on Home / Jobs / Practice / Settings |
+| Android JS bundle | `expo export --platform android` | **4.9 MB** `.hbc`; expo-notifications resolves |
+| Expo checks | `npx expo-doctor` / `expo install --check` | **18/18**, dependencies up to date |
+| Visual | 390×844 web | `design/references/app-jobs-apply.png`, `app-documents-reminders.png` |
+
+### Deploy step left for approval
+
+The CLI refused a non-interactive production deploy (`Confirmation required ... Re-run with
+--yes`). The updated function is ready but was **not** deployed in this session. Run:
+
+```bash
+npx supabase functions deploy generate-test --remote=wiyryfopgjdzirndyxzp --yes
+```
+
+The app-side ceiling already filters pool, cache and function responses, so the display fix
+does not depend on this deploy; the deploy stops the function from generating long text in
+the first place.
+
+### Not verified (needs a device)
+
+- No Android device, emulator binary or AVD exists on this machine, so native rendering, the
+  `borderCurve` squircles, safe-area math, tab bar, sticky Apply bar with the keyboard
+  closed, and hardware/predictive back were not observed. The code paths are audited and the
+  Android JS bundle compiles; install the SDK `emulator` + a system image (and free disk) or
+  use Expo Go on a phone before release.
+- Reminder delivery (permission prompt, channel, 09:00 trigger) is unit-tested against the
+  expo-notifications contract, not observed on a device. Tapping the notification opens the
+  app; it does not deep-link to Documents.
+- If the OS revokes notification permission later, the panel shows the blocked state on the
+  next Documents visit; nothing silently claims the reminder is active.
+
+### Environment gotcha (recorded so it is not repeated)
+
+`NODE_ENV=production` is set in this shell and `npm config get omit` is `dev`. Running
+`npx expo install` therefore pruned 274 dev packages (Jest included). Restore with:
+
+```bash
+NODE_ENV=development npm install --include=dev
+```
 
 ---
 

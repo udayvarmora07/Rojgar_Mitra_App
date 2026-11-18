@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { Masthead } from '../../components/ui/Masthead';
@@ -9,6 +10,7 @@ import { Screen } from '../../components/ui/Screen';
 import { SectionHeading } from '../../components/ui/SectionHeading';
 import { Footnote } from '../../components/ui/States';
 import { Mono } from '../../components/ui/Mono';
+import { DocumentReminderPanel } from '../../components/documents/DocumentReminderPanel';
 import { useChecklist } from '../../hooks/useChecklist';
 import { curve, palette } from '../../constants/theme';
 import type { DocPhase } from '../../constants/documents';
@@ -36,13 +38,14 @@ function PhaseCard({
       onPress={() =>
         router.push({ pathname: '/documents/[phase]', params: jobId ? { phase, jobId } : { phase } })
       }
-      className="bg-card rounded-card p-5 mb-3 border border-rule active:opacity-80"
       style={curve}
+      className="bg-card rounded-card p-5 mb-3 border border-rule active:opacity-80"
     >
       <View className="flex-row items-center mb-4">
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
+          style={curve}
           className="w-11 h-11 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
         >
           <Ionicons
@@ -75,6 +78,7 @@ export default function DocumentsHome() {
   const { jobId } = useLocalSearchParams<{ jobId?: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const application = useChecklist('application', jobId);
   const exam = useChecklist('exam', jobId);
 
@@ -94,7 +98,11 @@ export default function DocumentsHome() {
       />
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: insets.bottom + 28,
+        }}
       >
         <View className="bg-navy-tint border border-navy-line rounded-card p-5 mb-4" style={curve}>
           <View className="flex-row items-end justify-between">
@@ -114,6 +122,10 @@ export default function DocumentsHome() {
             <ProgressBar ratio={ratio} tone="primary" />
           </View>
         </View>
+
+        {!jobId && !application.loading && !exam.loading ? (
+          <DocumentReminderPanel pending={application.stats.pending + exam.stats.pending} />
+        ) : null}
 
         <SectionHeading title={t('myChecklists')} className="mt-2" />
         {application.loading || exam.loading ? null : (

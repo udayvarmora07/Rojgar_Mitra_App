@@ -10,10 +10,13 @@ jest.mock('../lib/supabase', () => ({
 }));
 
 import {
+  fitsQuestionCard,
   generatePracticeTest,
   loadPoolTest,
   loadPracticeTest,
+  MIN_POOL_QUESTIONS,
   parseQuestions,
+  QUESTION_MAX_CHARS,
   scoreTest,
   validateQuestions,
   type TestGenerationResult,
@@ -57,6 +60,26 @@ describe('validateQuestions', () => {
   });
 });
 
+describe('question length policy', () => {
+  it('rejects a question, option or explanation that cannot fit the card', () => {
+    expect(fitsQuestionCard(good)).toBe(true);
+    expect(
+      fitsQuestionCard({ ...good, question: 'x'.repeat(QUESTION_MAX_CHARS + 1) })
+    ).toBe(false);
+    expect(
+      fitsQuestionCard({ ...good, options: { ...good.options, C: 'y'.repeat(71) } })
+    ).toBe(false);
+    expect(fitsQuestionCard({ ...good, explanation: 'z'.repeat(121) })).toBe(false);
+  });
+
+  it('collapses newlines so a field cannot become a paragraph', () => {
+    const [q] = validateQuestions({
+      questions: [{ ...good, question: 'What is\n  2 + 2?' }],
+    });
+    expect(q.question).toBe('What is 2 + 2?');
+  });
+});
+
 describe('parseQuestions', () => {
   it('strips <think> reasoning blocks and markdown fences', () => {
     const raw = `<think>let me plan {not json}</think>\n\`\`\`json\n${JSON.stringify({ questions: [good] })}\n\`\`\``;
@@ -82,6 +105,14 @@ describe('generatePracticeTest', () => {
   it('throws on function errors', async () => {
     mockInvoke.mockResolvedValue({ data: null, error: new Error('502') });
     await expect(generatePracticeTest('gk', 'en')).rejects.toThrow('502');
+  });
+
+  it('rejects a response where every question is too long for the card', async () => {
+    mockInvoke.mockResolvedValue({
+      data: { questions: [{ ...good, question: 'x'.repeat(QUESTION_MAX_CHARS + 1) }] },
+      error: null,
+    });
+    await expect(generatePracticeTest('gk', 'en')).rejects.toThrow('fit the screen');
   });
 });
 
@@ -174,6 +205,37 @@ describe('loadPoolTest', () => {
       data: [{ question: 'Q', options: { A: '1', B: '2', C: '3', D: '4' }, correct: 'A', explanation: '' }],
       error: null,
     });
+    expect(await loadPoolTest('gk', 'gu')).toBeNull();
+  });
+
+  it('drops overlong pooled rows instead of showing them', async () => {
+    const rows = Array.from({ length: MIN_POOL_QUESTIONS + 2 }, (_, i) => ({
+      question: `Question ${i + 1}?`,
+      options: { A: '1', B: '2', C: '3', D: '4' },
+      correct: 'A',
+      explanation: 'because',
+    }));
+    rows.push({
+      question: 'x'.repeat(QUESTION_MAX_CHARS + 1),
+      options: { A: '1', B: '2', C: '3', D: '4' },
+      correct: 'A',
+      explanation: 'too long',
+    });
+    mockRpc.mockResolvedValueOnce({ data: rows, error: null });
+
+    const result = await loadPoolTest('gk', 'gu');
+    expect(result?.questions).toHaveLength(MIN_POOL_QUESTIONS + 2);
+    expect(result?.questions.every(fitsQuestionCard)).toBe(true);
+  });
+
+  it('returns null when too few pooled rows fit the card', async () => {
+    const rows = Array.from({ length: MIN_POOL_QUESTIONS - 1 }, (_, i) => ({
+      question: `Question ${i + 1}?`,
+      options: { A: '1', B: '2', C: '3', D: '4' },
+      correct: 'A',
+      explanation: 'because',
+    }));
+    mockRpc.mockResolvedValueOnce({ data: rows, error: null });
     expect(await loadPoolTest('gk', 'gu')).toBeNull();
   });
 

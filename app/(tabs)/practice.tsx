@@ -8,7 +8,7 @@ import { LanguageToggle } from '../../components/ui/LanguagePicker';
 import { SectionHeading } from '../../components/ui/SectionHeading';
 import { Screen } from '../../components/ui/Screen';
 import { QUESTIONS_PER_TEST, TEST_CATEGORIES } from '../../constants/testCategories';
-import { palette } from '../../constants/theme';
+import { curve, palette } from '../../constants/theme';
 import { loadHistory, TestRecord } from '../../lib/testHistory';
 import { formatDate } from '../../lib/deadline';
 import { formatScore } from '../../lib/format';
@@ -55,11 +55,13 @@ export default function PracticeScreen() {
           accessibilityLabel={t('timedTest')}
           accessibilityHint={t('timedTestHint')}
           onPress={() => setTimed((v) => !v)}
+          style={curve}
           className="bg-card rounded-card border border-rule p-4 mb-5 flex-row items-center min-h-[76px] active:opacity-80"
         >
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
+            style={curve}
             className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
           >
             <Ionicons name="timer-outline" size={22} color={palette.navy} />
@@ -90,12 +92,14 @@ export default function PracticeScreen() {
                   params: { category: category.topic, timed: timed ? '1' : '0' },
                 })
               }
+              style={curve}
               className="w-[48.5%] bg-card rounded-card p-4 mb-3 border border-rule min-h-[150px] justify-between active:opacity-80"
             >
               <View className="flex-row items-start justify-between">
                 <View
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
+                  style={curve}
                   className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
                 >
                   <Ionicons
@@ -104,9 +108,6 @@ export default function PracticeScreen() {
                     color={palette.navy}
                   />
                 </View>
-                <Mono className="text-[11px] font-bold text-ink-mute">
-                  {QUESTIONS_PER_TEST} Q
-                </Mono>
               </View>
               <View>
                 <Text className="text-body leading-reading font-bold text-ink mt-3">
@@ -124,11 +125,13 @@ export default function PracticeScreen() {
           accessibilityRole="button"
           accessibilityLabel={`${t('studyMaterial')}. ${t('studyMaterialHint')}`}
           onPress={() => router.push('/resources')}
+          style={curve}
           className="bg-card border border-rule rounded-card p-4 flex-row items-center mt-1 mb-2 active:opacity-80"
         >
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
+            style={curve}
             className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
           >
             <Ionicons name="library-outline" size={22} color={palette.navy} />
@@ -145,7 +148,7 @@ export default function PracticeScreen() {
         {history.length === 0 ? (
           <EmptyState icon="ribbon-outline" title={t('noHistory')} />
         ) : (
-          <View className="bg-card border border-rule rounded-card overflow-hidden">
+          <View style={curve} className="bg-card border border-rule rounded-card overflow-hidden">
             {history.slice(0, 5).map((record, index) => {
               const percent = record.total ? Math.round((record.score / record.total) * 100) : 0;
               const good = percent >= 60;

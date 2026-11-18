@@ -2,10 +2,11 @@ import { useCallback } from 'react';
 import { Alert, Linking, RefreshControl, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LearningResourceWithJob } from '../lib/supabase';
 import { isSafeWebUrl } from '../lib/url';
 import { useLearningResources } from '../hooks/useLearningResources';
-import { palette } from '../constants/theme';
+import { curve, palette } from '../constants/theme';
 import { isTopic } from '../constants/testCategories';
 import { Masthead } from '../components/ui/Masthead';
 import { LanguageToggle } from '../components/ui/LanguagePicker';
@@ -26,6 +27,7 @@ const GROUPS: { type: LearningResourceWithJob['resource_type']; titleKey: Transl
 export default function ResourcesScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ jobId?: string; jobTitle?: string }>();
   const jobId = typeof params.jobId === 'string' && params.jobId ? params.jobId : undefined;
   const jobTitle = typeof params.jobTitle === 'string' ? params.jobTitle : undefined;
@@ -69,7 +71,11 @@ export default function ResourcesScreen() {
       ) : (
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: insets.bottom + 28,
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -110,7 +116,7 @@ export default function ResourcesScreen() {
               return (
                 <View key={group.type}>
                   <SectionHeading title={t(group.titleKey)} count={items.length} />
-                  <View className="bg-card border border-rule rounded-card overflow-hidden">
+                  <View style={curve} className="bg-card border border-rule rounded-card overflow-hidden">
                     {items.map((resource, index) => (
                       <ResourceRow
                         key={resource.id}

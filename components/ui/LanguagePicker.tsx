@@ -67,6 +67,7 @@ export function LanguageToggle() {
         accessibilityRole="button"
         accessibilityLabel={`${t('selectLanguage')}: ${current.nativeLabel}`}
         onPress={() => setOpen(true)}
+        style={curve}
         className="bg-white/10 min-h-[48px] px-3.5 rounded-control flex-row items-center border border-navy-line active:opacity-80"
       >
         <Ionicons name="globe-outline" size={20} color={palette.card} />

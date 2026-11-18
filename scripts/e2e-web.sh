@@ -85,6 +85,36 @@ check_text() {
   pass "$2"
 }
 
+click_tab() {
+  local name="$1" href="$2"
+  # The tab label carries an icon glyph; match the route, as the a11y gate does.
+  "${AB[@]}" eval "
+    (() => {
+      const el = document.querySelector('a[role=\"tab\"][href=\"$href\"]')
+        || Array.from(document.querySelectorAll('[role=\"tab\"], a'))
+             .find((n) => (n.getAttribute('href') || '') === '$href');
+      if (!el) return 'missing';
+      el.click();
+      return 'clicked';
+    })();
+  " 2>/dev/null | grep -q clicked || fail "could not tap the $name tab"
+  sleep 1
+}
+
+audit_page() {
+  local label="$1" report critical
+  report="$("${AB[@]}" a11y --json 2>/dev/null || echo '{}')"
+  critical="$(printf '%s' "$report" | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+data = d.get("data", d)
+v = data.get("violations", [])
+print(sum(1 for x in v if x.get("impact") in ("critical", "serious")))
+' 2>/dev/null || echo 0)"
+  [[ "$critical" == "0" ]] && pass "$label: no critical/serious a11y violations" \
+    || fail "$critical critical/serious a11y violation(s) on $label"
+}
+
 echo "==> Home screen"
 "${AB[@]}" open "$BASE/" >/dev/null
 check_text "Rojgar Mitra" "home shows app name"
@@ -98,22 +128,15 @@ check_text "Last Date" "home shows live job cards from the database"
 # The shortcut must carry its filter into the jobs screen, not just navigate to it.
 "${AB[@]}" find text "Graduate" click >/dev/null 2>&1 || fail "education shortcut not tappable"
 check_text "Clear filters" "education shortcut opens a filtered jobs list"
+# PRD 5.2: Apply is reachable from the list, not only after opening a notice.
+check_text "Apply Now - Official Website" "jobs list offers Apply on the card"
 
 echo "==> Accessibility audit (home)"
-A11Y="$("${AB[@]}" a11y "$BASE/" --json 2>/dev/null || echo '{}')"
-CRITICAL="$(printf '%s' "$A11Y" | python3 -c '
-import sys, json
-d = json.load(sys.stdin)
-data = d.get("data", d)
-v = data.get("violations", [])
-print(sum(1 for x in v if x.get("impact") in ("critical", "serious")))
-' 2>/dev/null || echo 0)"
-[[ "$CRITICAL" == "0" ]] && pass "no critical/serious a11y violations" \
-  || fail "$CRITICAL critical/serious a11y violation(s) on home"
+audit_page "home"
 
 echo "==> Tab navigation (in-app, like a real user)"
 # Static export serves only index.html; routes are client-side, so tabs are tapped in-app.
-"${AB[@]}" find text "Practice" click >/dev/null 2>&1 || fail "practice tab not tappable"
+click_tab "Practice" "/practice"
 check_text "Practice Test" "practice tab opens practice screen"
 
 echo "==> Study material"
@@ -124,8 +147,22 @@ check_text "PDF documents" "study material lists official PDFs"
 check_text "Official websites" "study material lists official links"
 "${AB[@]}" find text "Back" click >/dev/null 2>&1 || fail "study material has no back control"
 
-"${AB[@]}" find text "Settings" click >/dev/null 2>&1 || fail "settings tab not tappable"
+click_tab "Settings" "/settings"
 check_text "Language" "settings tab opens settings screen"
+
+echo "==> Documents"
+"${AB[@]}" eval "
+  (() => {
+    const el = Array.from(document.querySelectorAll('[role=\"button\"]'))
+      .find((n) => (n.getAttribute('aria-label') || '').startsWith('Document Checklist'));
+    if (!el) return 'missing';
+    el.click();
+    return 'clicked';
+  })();
+" 2>/dev/null | grep -q clicked || fail "settings documents row not tappable"
+check_text "Document reminders" "documents screen shows the reminder control"
+check_text "Document reminders work in the mobile app." "reminder states the mobile-only limit"
+audit_page "documents"
 
 echo
 echo "All E2E checks passed."

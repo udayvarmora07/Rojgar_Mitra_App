@@ -2,7 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { LearningResourceWithJob } from '../../lib/supabase';
-import { palette } from '../../constants/theme';
+import { curve, palette } from '../../constants/theme';
 import type { TranslationKey } from '../../lib/locales/en';
 
 const ICONS: Record<LearningResourceWithJob['resource_type'], keyof typeof Ionicons.glyphMap> = {
@@ -50,6 +50,7 @@ export function ResourceRow({ resource, onPress, divided = false }: Props) {
       <View
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
+        style={curve}
         className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
       >
         <Ionicons name={ICONS[resource.resource_type]} size={22} color={palette.navy} />

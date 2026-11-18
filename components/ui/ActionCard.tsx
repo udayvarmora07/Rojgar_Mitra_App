@@ -46,6 +46,7 @@ export function ActionCard({
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
+          style={curve}
           className="w-12 h-12 rounded-control border border-navy-line bg-white/10 items-center justify-center mr-4"
         >
           <Ionicons name={icon} size={26} color={palette.card} />
@@ -82,6 +83,7 @@ export function ActionCard({
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
+          style={curve}
           className="w-11 h-11 rounded-control border border-navy-line bg-navy-tint items-center justify-center"
         >
           <Ionicons name={icon} size={24} color={palette.navy} />

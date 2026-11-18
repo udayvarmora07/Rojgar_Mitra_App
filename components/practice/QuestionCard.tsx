@@ -54,7 +54,7 @@ export function QuestionCard({ question, index, total, selected, reveal = false,
       </View>
 
       {reveal ? (
-        <View className="mt-1 p-4 rounded-control bg-open-bg border border-open-border">
+        <View style={curve} className="mt-1 p-4 rounded-control bg-open-bg border border-open-border">
           {!selected ? (
             <Text className="text-body font-bold text-stamp mb-1">{t('notAnswered')}</Text>
           ) : null}

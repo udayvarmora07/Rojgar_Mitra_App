@@ -8,7 +8,7 @@
   "question_styles": [
     "direct one-line question",
     "statement-based: \"Which of the following statements is correct / NOT correct?\"",
-    "match the pairs, where each option lists a full set of pairings",
+    "match the pairs, with at most two pairs in each option",
     "odd one out",
     "fill in the blank"
   ],

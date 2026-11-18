@@ -13,7 +13,7 @@ export function LoadingState({ label }: { label: string }) {
     <View accessibilityLiveRegion="polite" className="flex-1 bg-paper px-4 pt-5">
       <Text className="text-label text-ink-mute mb-4">{label}</Text>
       {[0, 1, 2, 3].map((i) => (
-        <View key={i} className="bg-card border border-rule rounded-card mb-3 p-4 flex-row">
+        <View key={i} style={curve} className="bg-card border border-rule rounded-card mb-3 p-4 flex-row">
           <View className="w-[68px] self-stretch rounded-[8px] bg-paper mr-4" />
           <View className="flex-1">
             <View className="h-4 bg-paper rounded-[4px] w-4/5 mb-2" />
@@ -63,6 +63,7 @@ export function Banner({
   return (
     <View
       accessibilityLiveRegion="polite"
+      style={curve}
       className="bg-card border border-rule rounded-control p-3 mb-4 flex-row items-center"
     >
       <Ionicons

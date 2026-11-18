@@ -11,7 +11,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Mono } from '../../components/ui/Mono';
 import { Footnote } from '../../components/ui/States';
-import { palette } from '../../constants/theme';
+import { curve, palette } from '../../constants/theme';
 import { clearAppData } from '../../lib/storage';
 
 export default function SettingsScreen() {
@@ -49,11 +49,13 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`${t('documentsTitle')}. ${t('documentsIntro')}`}
           onPress={() => router.push('/documents')}
+          style={curve}
           className="bg-card border border-rule rounded-card p-4 flex-row items-center active:opacity-80"
         >
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
+            style={curve}
             className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
           >
             <Ionicons name="document-text-outline" size={22} color={palette.navy} />

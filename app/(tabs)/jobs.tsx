@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -34,7 +35,9 @@ import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Mono } from '../../components/ui/Mono';
 import { Screen } from '../../components/ui/Screen';
 import { useLanguage } from '../../hooks/useLanguage';
-import { palette } from '../../constants/theme';
+import { openExternalLink } from '../../lib/externalLink';
+import { isSafeWebUrl } from '../../lib/url';
+import { curve, palette } from '../../constants/theme';
 
 export default function JobsScreen() {
   const router = useRouter();
@@ -54,6 +57,14 @@ export default function JobsScreen() {
   const [sheetOpen, setSheetOpen] = useState(params.filters === '1');
   const [departmentQuery, setDepartmentQuery] = useState('');
   const { language } = useLanguage();
+
+  // PRD 5.2: Apply is available straight from the list, not only on the detail screen.
+  const applyToJob = useCallback(
+    async (link: string | null) => {
+      if (!(await openExternalLink(link))) Alert.alert(t('linkError'));
+    },
+    [t]
+  );
 
   // Home can link here with a deadline or education level already chosen; keep the
   // controls in sync if the route changes while the screen is mounted.
@@ -160,6 +171,7 @@ export default function JobsScreen() {
             accessibilityLabel={t('filters')}
             accessibilityState={{ expanded: sheetOpen }}
             onPress={() => setSheetOpen(true)}
+            style={curve}
             className="min-h-[48px] px-3 rounded-control border border-rule flex-row items-center active:opacity-70"
           >
             <Ionicons name="options-outline" size={20} color={palette.navy} />
@@ -203,7 +215,13 @@ export default function JobsScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <JobCard job={item} onPress={() => router.push(`/job/${item.id}`)} />
+          <JobCard
+            job={item}
+            onPress={() => router.push(`/job/${item.id}`)}
+            onApply={
+              isSafeWebUrl(item.source_link) ? () => applyToJob(item.source_link) : undefined
+            }
+          />
         )}
         ListEmptyComponent={
           offline && jobs.length === 0 ? (
@@ -281,7 +299,7 @@ export default function JobsScreen() {
         <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute mb-2">
           {t('department')}
         </Text>
-        <View className="flex-row items-center bg-paper rounded-control border border-rule px-3 min-h-[52px] mb-3">
+        <View style={curve} className="flex-row items-center bg-paper rounded-control border border-rule px-3 min-h-[52px] mb-3">
           <Ionicons name="search" size={20} color={palette.inkSoft} />
           <TextInput
             accessibilityLabel={t('searchDepartments')}
@@ -327,7 +345,7 @@ function SearchBox({
   clearLabel: string;
 }) {
   return (
-    <View className="flex-row items-center bg-card rounded-control px-3.5 mt-4 min-h-[56px] border border-rule">
+    <View style={curve} className="flex-row items-center bg-card rounded-control px-3.5 mt-4 min-h-[56px] border border-rule">
       <Ionicons name="search" size={22} color={palette.inkSoft} />
       <TextInput
         accessibilityLabel={label}
@@ -372,6 +390,7 @@ function FilterRow({
       aria-checked={selected}
       accessibilityLabel={label}
       onPress={onPress}
+      style={curve}
       className={`min-h-[56px] px-3 rounded-control border flex-row items-center mb-2 active:opacity-80 ${
         selected ? 'bg-navy-tint border-navy' : 'bg-card border-rule'
       }`}

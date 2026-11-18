@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
@@ -16,8 +16,9 @@ import {
 } from '../../lib/supabase';
 import { formatDate } from '../../lib/deadline';
 import { isSafeWebUrl } from '../../lib/url';
+import { openExternalLink } from '../../lib/externalLink';
 import { useLanguage } from '../../hooks/useLanguage';
-import { palette } from '../../constants/theme';
+import { curve, palette } from '../../constants/theme';
 import { Masthead } from '../../components/ui/Masthead';
 import { LanguageToggle } from '../../components/ui/LanguagePicker';
 import { SectionHeading } from '../../components/ui/SectionHeading';
@@ -73,12 +74,7 @@ export default function JobDetailScreen() {
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   const openSource = async () => {
-    if (!isSafeWebUrl(job?.source_link)) return;
-    try {
-      await Linking.openURL(job.source_link.trim());
-    } catch {
-      Alert.alert(t('linkError'));
-    }
+    if (!(await openExternalLink(job?.source_link))) Alert.alert(t('linkError'));
   };
 
   if (loading) {
@@ -135,20 +131,20 @@ export default function JobDetailScreen() {
           </View>
         ) : null}
 
-        <View className="bg-card border border-rule rounded-card p-5 mb-1">
+        <View style={curve} className="bg-card border border-rule rounded-card p-5 mb-1">
           <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute">
             {t('noticeLabel')}
           </Text>
           <Text className="text-[26px] leading-[32px] font-extrabold text-ink tracking-tight mt-2">
             {job.title}
           </Text>
-          <View className="mt-4 p-3 rounded-control bg-navy-tint border border-navy-line">
+          <View style={curve} className="mt-4 p-3 rounded-control bg-navy-tint border border-navy-line">
             <DeadlineBadge deadline={job.deadline} />
           </View>
         </View>
 
         <SectionHeading title={t('jobInfo')} />
-        <View className="bg-card border border-rule rounded-card px-5">
+        <View style={curve} className="bg-card border border-rule rounded-card px-5">
           {job.vacancies != null ? (
             <Fact label={t('vacancies')} value={t('vacancyCount', { count: job.vacancies })} />
           ) : null}
@@ -162,7 +158,7 @@ export default function JobDetailScreen() {
         </View>
 
         <SectionHeading title={t('eligibility')} />
-        <View className="bg-card border border-rule rounded-card px-5">
+        <View style={curve} className="bg-card border border-rule rounded-card px-5">
           {details.length === 0 && !partialFailure ? (
             <Text className="text-body text-ink-soft leading-reading py-4">
               {t('noEligibilityInfo')}
@@ -191,7 +187,7 @@ export default function JobDetailScreen() {
         </View>
 
         <SectionHeading title={t('requiredDocuments')} />
-        <View className="bg-card border border-rule rounded-card p-5">
+        <View style={curve} className="bg-card border border-rule rounded-card p-5">
           {documents.length === 0 ? (
             <Text className="text-body text-ink-soft leading-reading mb-4">
               {t('noDocumentsInfo')}
@@ -240,11 +236,13 @@ export default function JobDetailScreen() {
               params: { jobId: job.id, jobTitle: job.title },
             })
           }
+          style={curve}
           className="bg-card border border-rule rounded-card p-4 flex-row items-center active:opacity-80"
         >
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
+            style={curve}
             className="w-10 h-10 rounded-control border border-navy-line bg-navy-tint items-center justify-center"
           >
             <Ionicons name="library-outline" size={22} color={palette.navy} />
@@ -264,11 +262,13 @@ export default function JobDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel={`${t('startPractice')}. ${t('quickPracticeHint')}`}
           onPress={() => router.push('/practice')}
+          style={curve}
           className="bg-navy-tint border border-navy-line rounded-card p-4 flex-row items-center mt-3 active:opacity-80"
         >
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
+            style={curve}
             className="w-10 h-10 rounded-control border border-navy-line bg-card items-center justify-center"
           >
             <Ionicons name="school-outline" size={22} color={palette.navy} />

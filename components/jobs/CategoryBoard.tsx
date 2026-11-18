@@ -72,6 +72,7 @@ export function CategoryBoard({
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
+          style={curve}
           className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
         >
           <Ionicons name="business-outline" size={22} color={palette.navy} />

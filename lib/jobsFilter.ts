@@ -46,31 +46,6 @@ export function countByEducationLevel(
   return counts;
 }
 
-/** How many department chips fit before the row becomes an unusable horizontal scroller. */
-export const MAX_VISIBLE_DEPARTMENTS = 8;
-
-/**
- * Splits departments into the chips shown inline and the ones hidden behind "More".
- *
- * A live scrape produced 50+ distinct departments, most with a single advertisement each. A
- * scroller that long is effectively unusable for a low-literacy user, so the row stays short
- * and the full list moves behind one control. A selected department is always kept visible so
- * the current filter is never hidden from the user who chose it.
- */
-export function splitDepartments(
-  departments: string[],
-  selected: string | null,
-  max: number = MAX_VISIBLE_DEPARTMENTS
-): { visible: string[]; hidden: string[] } {
-  if (departments.length <= max) return { visible: departments, hidden: [] };
-  const visible = departments.slice(0, max);
-  const hidden = departments.slice(max);
-  if (selected && hidden.includes(selected)) {
-    visible.push(selected);
-  }
-  return { visible, hidden };
-}
-
 /**
  * Expired jobs are always hidden from the browse list - a farmer should not tap
  * a job they can no longer apply for.

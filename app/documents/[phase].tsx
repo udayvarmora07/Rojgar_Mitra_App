@@ -1,6 +1,7 @@
 import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Masthead } from '../../components/ui/Masthead';
 import { LanguageToggle } from '../../components/ui/LanguagePicker';
 import { ProgressBar } from '../../components/ui/ProgressBar';
@@ -17,6 +18,7 @@ export default function DocumentChecklistScreen() {
   const phase = isDocPhase(params.phase) ? params.phase : 'application';
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const { items, ready, toggle, loading, stats } = useChecklist(phase, params.jobId);
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/documents'));
@@ -35,7 +37,11 @@ export default function DocumentChecklistScreen() {
       ) : (
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: insets.bottom + 28,
+          }}
         >
           <View className="bg-card rounded-card p-5 mb-4 border border-rule" style={curve}>
             <View className="flex-row items-end justify-between mb-3">

@@ -93,29 +93,56 @@ describe('QuestionCard', () => {
 });
 
 describe('JobCard', () => {
+  const job: Job = {
+    id: '1',
+    title: 'Junior Clerk',
+    department: 'Revenue',
+    post_date: '2026-10-01',
+    deadline: '2099-01-01',
+    vacancies: null,
+    qualification: null,
+    advertisement_no: null,
+    education_level: null,
+    location: null,
+    salary: '₹19,950',
+    source_link: 'https://ojas.gujarat.gov.in/',
+    created_at: '',
+    updated_at: null,
+  };
+
   it('shows title, department and salary and opens on tap', () => {
-    const job: Job = {
-      id: '1',
-      title: 'Junior Clerk',
-      department: 'Revenue',
-      post_date: '2026-10-01',
-      deadline: '2099-01-01',
-      vacancies: null,
-      qualification: null,
-      advertisement_no: null,
-      education_level: null,
-      location: null,
-      salary: '₹19,950',
-      source_link: null,
-      created_at: '',
-      updated_at: null,
-    };
     const onPress = jest.fn();
     render(<JobCard job={job} onPress={onPress} />);
     expect(screen.getByText('₹19,950')).toBeTruthy();
     // The accessible name carries the deadline as well as the post and department.
     fireEvent.press(screen.getByRole('button', { name: /Junior Clerk, Revenue/ }));
     expect(onPress).toHaveBeenCalled();
+  });
+
+  it('offers Apply as a separate control on the list, not a nested button', () => {
+    const onPress = jest.fn();
+    const onApply = jest.fn();
+    render(<JobCard job={job} onPress={onPress} onApply={onApply} />);
+
+    fireEvent.press(
+      screen.getByRole('link', { name: 'Apply Now - Official Website: Junior Clerk' })
+    );
+    expect(onApply).toHaveBeenCalledTimes(1);
+    expect(onPress).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByRole('button', { name: /Junior Clerk, Revenue/ }));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('never offers Apply on a closed notice', () => {
+    render(
+      <JobCard
+        job={{ ...job, deadline: '2026-01-01' }}
+        onPress={jest.fn()}
+        onApply={jest.fn()}
+      />
+    );
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });
 

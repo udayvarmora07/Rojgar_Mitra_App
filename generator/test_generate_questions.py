@@ -34,6 +34,8 @@ class SyllabusTests(unittest.TestCase):
         self.assertIn('Gujarati script', prompt)
         self.assertIn('do NOT copy', prompt)
         self.assertIn('"questions"', prompt)
+        self.assertIn('at most 120 characters', prompt)
+        self.assertIn('at most 50 characters', prompt)
 
 
 class ParseTests(unittest.TestCase):
@@ -52,6 +54,18 @@ class ParseTests(unittest.TestCase):
         ]
         out = g.parse_questions(json.dumps({'questions': items}), 'en')
         self.assertEqual([q['question'] for q in out], ['ok?'])
+
+    def test_collapses_whitespace(self):
+        raw = json.dumps({'questions': [make('What is\n   2 + 2?')]})
+        self.assertEqual(g.parse_questions(raw, 'en')[0]['question'], 'What is 2 + 2?')
+
+    def test_drops_overlong_fields(self):
+        items = [
+            make('x' * (g.QUESTION_MAX_CHARS + 1)),
+            make('ok?', options={'A': '1', 'B': '2', 'C': '3', 'D': 'y' * (g.OPTION_MAX_CHARS + 1)}),
+            make('ok?', explanation='z' * (g.EXPLANATION_MAX_CHARS + 1)),
+        ]
+        self.assertEqual(g.parse_questions(json.dumps({'questions': items}), 'en'), [])
 
     def test_requires_the_right_script(self):
         raw = json.dumps({'questions': [make('Which is correct?'), make('કયું સાચું છે?')]})

@@ -80,11 +80,12 @@ unit (`6 posts`, `0/10`).
 
 - 4px base. Page gutter 16px. Card padding 20px. Section heading: more space above than below.
 - Radius scale: `card 16px`, `control 12px`, `stub 10px`, `stamp 6px`. No `rounded-full`
-  except the timer switch and the progress track, which are capsule controls.
+  except switches and the progress track, which are capsule controls.
 - `borderCurve: 'continuous'` on non-capsule rounded surfaces (iOS squircle; ignored elsewhere).
 - Hairline borders, no shadows. Depth comes from the white surface on `paper` and a single
   rule, not from elevation.
-- Touch targets ≥ 48dp; primary actions 56dp. One card is one tap target.
+- Touch targets ≥ 48dp; primary actions 56dp. One notice is one tap target. The browse-list
+  card adds an Apply strip as a separate sibling target, never a control nested inside it.
 
 ---
 
@@ -108,8 +109,13 @@ button. Status is always words first.
 
 ### Job card
 Left date stub, then title (20px bold), department, one meta line (posts · qualification ·
-salary), then a "Last Date" label and the status stamp. Chevron at the trailing edge. One
-press target; no nested actions.
+salary), then a "Last Date" label and the status stamp. Chevron at the trailing edge. The
+notice block is one press target; no control is nested inside it.
+
+On the Jobs list the card closes with a ruled Apply strip: an open glyph, `Apply Now -
+Official Website`, and an arrow. It is a sibling press target below the notice, so a screen
+reader can reach it on iOS, and it is hidden for a closed notice. Home's preview cards keep
+the single target, because Home is for scanning and the list is for acting.
 
 ### Category board
 One white card, not six floating cards: a two-column grid of education levels that have open
@@ -127,6 +133,13 @@ Home's primary action is a filled navy card with a live count in mono and the co
 under it (e.g. `94` / `OPEN NOTICES`). The two peer actions are white cards with an icon
 tile, title, hint, and chevron. Widths are `flex-1 basis-0 min-w-0` so translations cannot
 push one wider.
+
+### Reminder row
+One ruled card: a bell tile, `Document reminders`, a hint, and a capsule switch. When the
+reminder is on and documents are pending, a ruled footer states the time in the reader's
+locale. A blocked permission is its own ruled footer with `Open phone settings`; a platform
+without local notifications keeps the row disabled and says so. The switch is never left
+looking on when the OS would not deliver anything.
 
 ### Section heading
 Title + optional mono count + optional single action, closed by a 1px rule. No eyebrow

@@ -113,7 +113,11 @@ export default function PracticeTestScreen() {
         <ScrollView
           ref={scrollRef}
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: insets.bottom + 28,
+          }}
         >
           {timeUp ? <Banner text={t('timeUp')} /> : null}
 

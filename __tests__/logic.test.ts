@@ -1,6 +1,6 @@
 import { daysLeft, deadlineStatus, formatDate, parseDate } from '../lib/deadline';
 import { evaluateEligibility } from '../lib/eligibility';
-import { filterJobs, listDepartments, MAX_VISIBLE_DEPARTMENTS, NO_FILTERS, splitDepartments } from '../lib/jobsFilter';
+import { filterJobs, listDepartments, NO_FILTERS } from '../lib/jobsFilter';
 import { progress } from '../lib/documentsStore';
 import { isSafeWebUrl } from '../lib/url';
 import { toLanguage } from '../constants/languages';
@@ -94,25 +94,6 @@ describe('jobs filter', () => {
 
   it('lists unique departments alphabetically', () => {
     expect(listDepartments(jobs)).toEqual(['Panchayat', 'Police']);
-  });
-
-  it('keeps every department inline when the list is short', () => {
-    expect(splitDepartments(['A', 'B', 'C'], null)).toEqual({ visible: ['A', 'B', 'C'], hidden: [] });
-  });
-
-  it('collapses a long department list behind one control', () => {
-    const many = Array.from({ length: 12 }, (_, i) => `Dept ${i}`);
-    const { visible, hidden } = splitDepartments(many, null);
-    expect(visible).toHaveLength(MAX_VISIBLE_DEPARTMENTS);
-    expect(hidden).toHaveLength(12 - MAX_VISIBLE_DEPARTMENTS);
-    // Nothing is lost: every department is reachable.
-    expect([...visible, ...hidden]).toEqual(many);
-  });
-
-  it('never hides the department the user selected', () => {
-    const many = Array.from({ length: 12 }, (_, i) => `Dept ${i}`);
-    const { visible } = splitDepartments(many, 'Dept 11');
-    expect(visible).toContain('Dept 11');
   });
 });
 

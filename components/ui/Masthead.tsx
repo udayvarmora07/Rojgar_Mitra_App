@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { palette } from '../../constants/theme';
+import { curve, palette } from '../../constants/theme';
 import { Mono } from './Mono';
 
 type Props = {
@@ -53,6 +53,7 @@ export function Masthead({
               <View
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
+                style={curve}
                 className="w-10 h-10 rounded-stub border border-navy-line items-center justify-center mr-3"
               >
                 <Mono className="text-white text-label font-bold">RM</Mono>

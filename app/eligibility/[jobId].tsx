@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ELIGIBILITY_QUESTIONS, EligibilityAnswers, evaluateEligibility } from '../../lib/eligibility';
 import { Masthead } from '../../components/ui/Masthead';
 import { LanguageToggle } from '../../components/ui/LanguagePicker';
@@ -16,6 +17,7 @@ export default function EligibilityScreen() {
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const [answers, setAnswers] = useState<EligibilityAnswers>({});
   const result = evaluateEligibility(answers);
 
@@ -32,7 +34,11 @@ export default function EligibilityScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: insets.bottom + 28,
+        }}
       >
         <View className="bg-card border border-rule rounded-card p-4 mb-4" style={curve}>
           <ProgressBar

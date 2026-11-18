@@ -47,6 +47,12 @@ LLM_MODEL = os.environ.get('LLM_MODEL', 'deepseek/deepseek-v4.1-flash')
 USER_AGENT = 'RojgarMitra-QuestionGenerator/1.0'  # the provider's firewall rejects default UAs
 OPTION_KEYS = ('A', 'B', 'C', 'D')
 
+# Keep in step with supabase/functions/generate-test/policy.ts and utils/aiGenerator.ts.
+# The prompt asks for less than these ceilings; the parser enforces the ceilings.
+QUESTION_MAX_CHARS = 160
+OPTION_MAX_CHARS = 70
+EXPLANATION_MAX_CHARS = 120
+
 TOPICS = tuple(SYLLABUS['topics'])
 LANGUAGES = tuple(SYLLABUS['languages'])
 
@@ -80,6 +86,12 @@ Options are shuffled later, so NEVER write options that refer to other options (
 Only use facts you are certain are correct and not time-sensitive; avoid events from the last two years.
 The explanation is one short sentence that teaches why the answer is right; it must not mention option letters.
 
+LENGTH RULES - the app shows the whole item on one phone screen:
+- The question is ONE sentence of at most 120 characters. Never a paragraph, numbered parts, or a long list of pairs.
+- Each option is at most 50 characters. In a match-the-pairs question an option may list at most two pairs.
+- The explanation is at most 90 characters.
+If a fact cannot fit inside these limits, ask a simpler question.
+
 Output ONLY valid, parseable JSON - no markdown, no commentary - in exactly this shape:
 {{"questions":[{{"question":"...","options":{{"A":"...","B":"...","C":"...","D":"..."}},"correct":"A","explanation":"..."}}]}}"""
 
@@ -103,10 +115,12 @@ def parse_questions(raw: str, language: str) -> list[dict]:
     for item in items if isinstance(items, list) else []:
         if not isinstance(item, dict):
             continue
-        question = str(item.get('question') or '').strip()
+        # Collapse newlines so a "question" cannot smuggle in a multi-line paragraph.
+        question = re.sub(r'\s+', ' ', str(item.get('question') or '')).strip()
         options = item.get('options') if isinstance(item.get('options'), dict) else {}
-        opts = {k: str(options.get(k) or '').strip() for k in OPTION_KEYS}
+        opts = {k: re.sub(r'\s+', ' ', str(options.get(k) or '')).strip() for k in OPTION_KEYS}
         correct = str(item.get('correct') or '').strip().upper()
+        explanation = re.sub(r'\s+', ' ', str(item.get('explanation') or '')).strip()
         if not question or not all(opts.values()) or correct not in OPTION_KEYS:
             continue
         if len(set(opts.values())) < 4:  # duplicate options make the question ambiguous
@@ -115,13 +129,19 @@ def parse_questions(raw: str, language: str) -> list[dict]:
             continue
         if question in seen:
             continue
+        if (
+            len(question) > QUESTION_MAX_CHARS
+            or any(len(text) > OPTION_MAX_CHARS for text in opts.values())
+            or len(explanation) > EXPLANATION_MAX_CHARS
+        ):
+            continue
         seen.add(question)
         valid.append(
             {
-                'question': question[:1000],
+                'question': question,
                 'options': opts,
                 'correct': correct,
-                'explanation': str(item.get('explanation') or '').strip()[:600],
+                'explanation': explanation,
             }
         )
     return valid
