@@ -2,6 +2,7 @@ const en = {
   // General
   appName: 'Rojgar Mitra',
   appTagline: 'Your friend for government jobs',
+  appKicker: 'Gujarat govt jobs',
   loading: 'Loading...',
   error: 'Something went wrong',
   retry: 'Try Again',
@@ -10,6 +11,7 @@ const en = {
   yes: 'Yes',
   no: 'No',
   close: 'Close',
+  selected: 'Selected',
   submit: 'Submit',
   next: 'Next',
   previous: 'Previous',
@@ -18,10 +20,13 @@ const en = {
   yourScore: 'Your Score',
   correct: 'Correct',
   incorrect: 'Incorrect',
+  offlineLabel: 'Offline',
+  noticeLabel: 'Notice',
   offlineBanner: 'No internet. Showing saved jobs.',
   loadFailed: 'Could not load jobs',
   loadFailedHint: 'Check your internet connection and try again.',
   lastUpdated: 'Last updated: {{date}}',
+  officialNote: 'Always check the official notice before you apply.',
 
   // Tabs
   tabHome: 'Home',
@@ -37,8 +42,14 @@ const en = {
   viewAllJobs: 'View All Jobs',
   quickActions: 'What do you want to do?',
   quickJobs: 'See Jobs',
+  quickJobsHint: 'All Gujarat government notices in one list',
   quickPractice: 'Practice Test',
+  quickPracticeHint: '10 questions · free',
   quickDocuments: 'My Documents',
+  quickDocumentsHint: 'For applying and exam day',
+  openNotices: 'open notices',
+  closingThisWeekCount_one: '{{count}} notice closes this week',
+  closingThisWeekCount_other: '{{count}} notices close this week',
 
   // Deadline
   lastDate: 'Last Date',
@@ -50,6 +61,12 @@ const en = {
   // Jobs list
   allJobs: 'All Jobs',
   searchJobs: 'Search job or department',
+  clearSearch: 'Clear search',
+  filters: 'Filters',
+  searchDepartments: 'Search departments',
+  sortedByLastDate: 'Sorted by last date',
+  showResults_one: 'Show {{count}} job',
+  showResults_other: 'Show {{count}} jobs',
   filterAll: 'All',
   filterClosingSoon: 'Closing soon',
   filterOpen: 'Open',
@@ -65,6 +82,7 @@ const en = {
 
   // Job details
   jobInfo: 'Job Information',
+  jobDetails: 'Job details',
   postDate: 'Post Date',
   deadline: 'Last Date to Apply',
   salary: 'Salary',
@@ -100,8 +118,10 @@ const en = {
   },
   answerAll: 'Answer all questions to see your result',
   eligibleTitle: 'You may be eligible!',
+  eligibleStamp: 'Eligible',
   eligibleNext: 'Keep your documents ready and apply before the last date.',
   notEligibleTitle: 'You may not be eligible',
+  notEligibleStamp: 'Not eligible',
   notEligibleNext: 'What you can do:',
   eligibilityDisclaimer: 'This is only a guide. Always read the official notification.',
   resetAnswers: 'Start Again',
@@ -109,6 +129,7 @@ const en = {
   // Documents
   documentsTitle: 'Document Checklist',
   documentsIntro: 'Tap a document when it is ready.',
+  myChecklists: 'Your checklists',
   applicationDocs: 'For Applying',
   examDocs: 'For Exam Day',
   progressLabel: 'Progress',
@@ -162,6 +183,8 @@ const en = {
   explanation: 'Explanation',
   history: 'Your Past Scores',
   noHistory: 'No tests taken yet. Start your first test!',
+  scoreGood: 'Good work',
+  scoreKeepPractising: 'Keep practising',
   sourceBank: 'No internet: showing saved practice questions',
   sourceCache: 'No internet: showing your last downloaded test',
 
@@ -172,6 +195,7 @@ const en = {
   about: 'About',
   aboutText: 'Rojgar Mitra collects Gujarat government job notices in one place. Always confirm details on the official website before applying.',
   version: 'Version {{version}}',
+  dataSection: 'Saved data',
   clearData: 'Clear saved data',
   clearDataHint: 'Removes saved jobs, test scores and checklists from this phone',
   clearDataConfirm: 'Delete all saved data from this phone?',

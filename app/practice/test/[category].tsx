@@ -1,19 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { loadPracticeTest, scoreTest, OptionKey, TestGenerationResult } from '../../../utils/aiGenerator';
 import { isTopic, TEST_CATEGORIES, TIMER_SECONDS } from '../../../constants/testCategories';
 import { addResult } from '../../../lib/testHistory';
 import { useLanguage } from '../../../hooks/useLanguage';
 import { useCountdown } from '../../../hooks/useCountdown';
-import { Header } from '../../../components/ui/Header';
+import { Masthead } from '../../../components/ui/Masthead';
 import { Button } from '../../../components/ui/Button';
 import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { Banner, LoadingState } from '../../../components/ui/States';
 import { QuestionCard } from '../../../components/practice/QuestionCard';
 import { Timer } from '../../../components/practice/Timer';
+import { SectionHeading } from '../../../components/ui/SectionHeading';
+import { Screen } from '../../../components/ui/Screen';
+import { Stamp } from '../../../components/ui/Stamp';
+import { Mono } from '../../../components/ui/Mono';
+import { curve } from '../../../constants/theme';
 
 type Phase = 'loading' | 'quiz' | 'results';
 
@@ -24,6 +29,7 @@ export default function PracticeTestScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { language } = useLanguage();
+  const insets = useSafeAreaInsets();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [test, setTest] = useState<TestGenerationResult | null>(null);
@@ -81,16 +87,17 @@ export default function PracticeTestScreen() {
 
   if (phase === 'loading' || !test) {
     return (
-      <View className="flex-1 bg-surface">
-        <Header title={title} onBack={back} />
+      <Screen>
+        <Masthead title={title} onBack={back} />
         <LoadingState label={t('generatingTest')} />
-      </View>
+      </Screen>
     );
   }
 
   const total = test.questions.length;
   const answeredCount = Object.keys(answers).length;
-  const sourceNote = test.source === 'bank' ? t('sourceBank') : test.source === 'cache' ? t('sourceCache') : null;
+  const sourceNote =
+    test.source === 'bank' ? t('sourceBank') : test.source === 'cache' ? t('sourceCache') : null;
 
   if (phase === 'results') {
     const score = scoreTest(test.questions, answers);
@@ -98,37 +105,51 @@ export default function PracticeTestScreen() {
     const good = percent >= 60;
 
     return (
-      <View className="flex-1 bg-surface">
-        <Header title={t('testComplete')} subtitle={title} onBack={back} />
-        <ScrollView ref={scrollRef} className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <Screen>
+        <Masthead title={t('testComplete')} subtitle={title} onBack={back} />
+        <ScrollView
+          ref={scrollRef}
+          className="flex-1"
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+        >
           {timeUp ? <Banner text={t('timeUp')} /> : null}
 
           <View
             accessible
-            accessibilityLabel={`${t('yourScore')}: ${score} / ${total}`}
-            className="bg-white rounded-card p-6 mb-4 border border-gray-200 items-center"
+            accessibilityLabel={`${t('yourScore')}: ${score} / ${total}, ${percent}%`}
+            className="bg-card rounded-card p-6 mb-4 border border-rule items-center"
+            style={curve}
           >
-            <Ionicons name={good ? 'ribbon' : 'refresh-circle'} size={72} color={good ? '#047857' : '#B45309'} />
-            <Text className="text-xl text-gray-700 mt-2">{t('yourScore')}</Text>
-            <Text className={`text-5xl font-bold mt-1 ${good ? 'text-accent' : 'text-alert'}`}>
+            <Stamp
+              tone={good ? 'open' : 'closing'}
+              label={good ? t('scoreGood') : t('scoreKeepPractising')}
+            />
+            <Text className="text-body text-ink-soft mt-4">{t('yourScore')}</Text>
+            <Mono className="text-[52px] leading-[58px] font-bold text-ink mt-1">
               {score}/{total}
-            </Text>
-            <Text className="text-xl font-semibold text-ink mt-1">{percent}%</Text>
+            </Mono>
+            <Text className="text-title font-bold text-ink-soft mt-1">{percent}%</Text>
+            <View className="self-stretch mt-4">
+              <ProgressBar ratio={percent / 100} tone={good ? 'accent' : 'primary'} />
+            </View>
           </View>
 
-          <View className="gap-3 mb-6">
-            <Button variant="accent" icon="refresh" label={t('newTest')} onPress={() => setAttempt((a) => a + 1)} />
+          <View className="gap-3 mb-2">
+            <Button
+              variant="accent"
+              icon="refresh"
+              label={t('newTest')}
+              onPress={() => setAttempt((a) => a + 1)}
+            />
             <Button variant="secondary" icon="arrow-back" label={t('goBack')} onPress={back} />
           </View>
 
-          <Text accessibilityRole="header" className="text-2xl font-bold text-ink mb-3">
-            {t('reviewAnswers')}
-          </Text>
+          <SectionHeading title={t('reviewAnswers')} />
           {test.questions.map((q, i) => (
             <QuestionCard key={i} question={q} index={i} total={total} selected={answers[i]} reveal />
           ))}
         </ScrollView>
-      </View>
+      </Screen>
     );
   }
 
@@ -136,15 +157,23 @@ export default function PracticeTestScreen() {
   const isLast = current === total - 1;
 
   return (
-    <View className="flex-1 bg-surface">
-      <Header title={title} onBack={back} right={timed ? <Timer seconds={remaining} /> : undefined}>
+    <Screen>
+      <Masthead
+        title={title}
+        onBack={back}
+        right={timed ? <Timer seconds={remaining} /> : undefined}
+      >
         <View className="mt-4">
-          <ProgressBar ratio={(current + 1) / total} />
+          <ProgressBar ratio={(current + 1) / total} tone="onDark" />
         </View>
-      </Header>
+      </Masthead>
 
-      <ScrollView ref={scrollRef} className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
-        {sourceNote ? <Banner text={sourceNote} /> : null}
+      <ScrollView
+        ref={scrollRef}
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 20 }}
+      >
+        {sourceNote ? <Banner text={sourceNote} tone="info" /> : null}
         <QuestionCard
           question={question}
           index={current}
@@ -152,15 +181,19 @@ export default function PracticeTestScreen() {
           selected={answers[current]}
           onSelect={(option) => setAnswers((a) => ({ ...a, [current]: option }))}
         />
-        <Text className="text-lg text-gray-700 text-center">
+        <Text className="text-label text-ink-mute text-center">
           {t('answeredCount', { count: answeredCount, total })}
         </Text>
       </ScrollView>
 
-      <View className="flex-row bg-white border-t border-gray-200 p-4 gap-3">
+      <View
+        className="bg-card border-t border-rule px-4 pt-3 flex-row gap-3"
+        style={{ paddingBottom: insets.bottom + 12 }}
+      >
         <View className="flex-1">
           <Button
             variant="secondary"
+            icon="arrow-back"
             label={t('previous')}
             disabled={current === 0}
             onPress={() => {
@@ -171,9 +204,10 @@ export default function PracticeTestScreen() {
         </View>
         <View className="flex-1">
           {isLast ? (
-            <Button variant="accent" label={t('submit')} onPress={() => submit(false)} />
+            <Button variant="accent" icon="checkmark" label={t('submit')} onPress={() => submit(false)} />
           ) : (
             <Button
+              icon="arrow-forward"
               label={t('next')}
               onPress={() => {
                 setCurrent((c) => Math.min(total - 1, c + 1));
@@ -183,6 +217,6 @@ export default function PracticeTestScreen() {
           )}
         </View>
       </View>
-    </View>
+    </Screen>
   );
 }

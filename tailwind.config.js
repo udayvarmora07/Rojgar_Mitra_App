@@ -1,4 +1,7 @@
 /** @type {import('tailwindcss').Config} */
+const tokens = require('./design/tokens.json');
+const c = tokens.colors;
+
 module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './components/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
@@ -8,43 +11,61 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Direction set in PRODUCT.md. Every pair is measured, not guessed:
-        //   primary #1E3A8A on white 10.36:1, white on primary 10.36:1
-        //   accent  #047857 on white  5.48:1, white on accent  5.48:1, on emerald-50 5.21:1
-        //   alert   #DC2626 on white  4.83:1 (borders/icons only, never body text)
-        //   ink     #111827 on surface 16.98:1
-        // UX4G (the Government of India design system) uses violet #4A2BC2 at 8.69:1 for its
-        // primary. We stay on navy: it measures 10.36:1, and this audience reads outdoors in
-        // daylight, so the extra contrast is worth more than matching the hex.
-        primary: '#1E3A8A',
-        'primary-dark': '#172554',
-        accent: '#047857',
-        alert: '#DC2626',
-        surface: '#F9FAFB',
-        ink: '#111827',
+        // "Employment Exchange Ledger" (DESIGN.md). Every pair measured, never guessed:
+        //   navy      #14315B on white 12.96:1, white on navy 12.96:1
+        //   ink       #101828 on paper 16.27:1
+        //   ink-soft  #475467 on paper  7.05:1
+        //   ink-mute  #667085 on white  4.97:1
+        //   stamp     #9A1B12 on white  8.27:1 (urgency only, never decoration)
+        // The values live in design/tokens.json so component code can share them.
+        navy: {
+          DEFAULT: c.navy,
+          deep: c.navyDeep,
+          tint: c.navyTint,
+          line: c.navyLine,
+        },
+        ink: c.ink,
+        'ink-soft': c.inkSoft,
+        'ink-mute': c.inkMute,
+        paper: c.paper,
+        card: c.card,
+        rule: c.rule,
+        'rule-strong': c.ruleStrong,
+        stamp: c.stamp,
+        success: c.success,
 
-        // Status surfaces from the UX4G ramps. Every one of these carries a text label, so
-        // colour is reinforcement and never the only signal.
-        'open-bg': '#F2FCEF',
-        'open-border': '#80DA88',
-        'open-text': '#00522C',
-        'closing-bg': '#FFF8F8',
-        'closing-border': '#FFB3AE',
-        'closing-text': '#8A1A16',
-        'closed-bg': '#F5F5F5',
-        'closed-border': '#D9D9D9',
-        'closed-text': '#404040',
+        // Status surfaces. Each one always carries a written label, so colour reinforces
+        // the message and is never the message (GIGW + our axe gate require this).
+        'open-bg': c.openBg,
+        'open-border': c.openBorder,
+        'open-text': c.openText,
+        'closing-bg': c.closingBg,
+        'closing-border': c.closingBorder,
+        'closing-text': c.closingText,
+        'closed-bg': c.closedBg,
+        'closed-border': c.closedBorder,
+        'closed-text': c.closedText,
       },
-      // One radius scale for the whole app, so cards, controls and badges share a system.
-      // Pills are reserved for status badges; actions are rectangular (PRODUCT.md 4).
       borderRadius: {
-        card: '14px',
-        control: '12px',
+        card: `${tokens.radii.card}px`,
+        control: `${tokens.radii.control}px`,
+        stub: `${tokens.radii.stub}px`,
       },
-      // Devanagari and Gujarati carry marks above and below the baseline, so body text needs
-      // more leading than Latin alone. 1.5 is the reading rhythm PRODUCT.md specifies.
+      fontSize: {
+        // Role scale, not a ratio. Body never drops below 18px for this audience.
+        micro: '13px',
+        label: '16px',
+        body: '18px',
+        title: '24px',
+        display: '30px',
+      },
+      letterSpacing: {
+        stamp: '0.08em',
+        tight: '-0.02em',
+      },
       lineHeight: {
         reading: '1.5',
+        snug: '1.3',
       },
     },
   },

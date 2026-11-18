@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { restoreSavedLanguage } from '../lib/i18n';
+import { palette } from '../constants/theme';
 import { LoadingState } from '../components/ui/States';
 
 export default function RootLayout() {
@@ -18,7 +19,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       {ready ? (
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F9FAFB' } }} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.paper } }} />
       ) : (
         <LoadingState label="" />
       )}

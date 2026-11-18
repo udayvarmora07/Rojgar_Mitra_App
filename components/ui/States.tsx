@@ -1,36 +1,88 @@
-import { ActivityIndicator, Text, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Text, View } from 'react-native';
 import { ReactNode } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTranslation } from 'react-i18next';
+import { curve, palette } from '../../constants/theme';
 
+/**
+ * Loading uses a still skeleton of the thing that is coming, not a spinner in the
+ * middle of an empty screen. No shimmer: motion on a mid-range phone is delay.
+ */
 export function LoadingState({ label }: { label: string }) {
   return (
-    <View accessibilityLiveRegion="polite" className="flex-1 items-center justify-center bg-surface p-6">
-      <ActivityIndicator size="large" color="#1E3A8A" accessibilityLabel={label} />
-      <Text className="text-xl text-gray-700 mt-4 text-center">{label}</Text>
+    <View accessibilityLiveRegion="polite" className="flex-1 bg-paper px-4 pt-5">
+      <Text className="text-label text-ink-mute mb-4">{label}</Text>
+      {[0, 1, 2, 3].map((i) => (
+        <View key={i} className="bg-card border border-rule rounded-card mb-3 p-4 flex-row">
+          <View className="w-[68px] self-stretch rounded-[8px] bg-paper mr-4" />
+          <View className="flex-1">
+            <View className="h-4 bg-paper rounded-[4px] w-4/5 mb-2" />
+            <View className="h-3 bg-paper rounded-[4px] w-3/5 mb-3" />
+            <View className="h-3 bg-paper rounded-[4px] w-2/5" />
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
 
-type EmptyProps = { icon: keyof typeof Ionicons.glyphMap; title: string; hint?: string; action?: ReactNode };
+type EmptyProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+};
 
 export function EmptyState({ icon, title, hint, action }: EmptyProps) {
   return (
-    <View className="bg-white rounded-card p-8 items-center border border-gray-200">
-      <Ionicons name={icon} size={64} color="#6B7280" />
-      <Text className="text-xl font-semibold text-ink mt-4 text-center">{title}</Text>
-      {hint ? <Text className="text-lg text-gray-700 mt-2 text-center">{hint}</Text> : null}
+    <View className="bg-card rounded-card p-6 items-center border border-rule" style={curve}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        className="w-14 h-14 rounded-control bg-paper border border-rule items-center justify-center"
+      >
+        <Ionicons name={icon} size={30} color={palette.inkSoft} />
+      </View>
+      <Text className="text-[20px] leading-[26px] font-bold text-ink mt-4 text-center">{title}</Text>
+      {hint ? <Text className="text-body text-ink-soft mt-2 text-center">{hint}</Text> : null}
       {action ? <View className="mt-5 self-stretch">{action}</View> : null}
     </View>
   );
 }
 
-export function Banner({ text, tone = 'warning' }: { text: string; tone?: 'warning' | 'info' }) {
-  // Warning uses the closing/alert surface from PRODUCT.md 4 instead of a warm amber tint.
-  const box = tone === 'warning' ? 'bg-closing-bg border-alert' : 'bg-blue-50 border-primary';
+export function Banner({
+  text,
+  tone = 'warning',
+}: {
+  text: string;
+  tone?: 'warning' | 'info';
+}) {
+  const { t } = useTranslation();
+  const label = tone === 'warning' ? t('offlineLabel') : t('noticeLabel');
+  const stamp = tone === 'warning' ? 'bg-closing-bg border-closing-border text-closing-text' : 'bg-navy-tint border-navy-line text-navy';
   return (
-    <View accessibilityLiveRegion="polite" className={`flex-row items-center border-l-4 rounded-lg p-4 mb-4 ${box}`}>
-      <Ionicons name={tone === 'warning' ? 'cloud-offline' : 'information-circle'} size={24} color="#111827" />
-      <Text className="text-lg text-ink ml-3 flex-1">{text}</Text>
+    <View
+      accessibilityLiveRegion="polite"
+      className="bg-card border border-rule rounded-control p-3 mb-4 flex-row items-center"
+    >
+      <Ionicons
+        name={tone === 'warning' ? 'cloud-offline-outline' : 'information-circle-outline'}
+        size={22}
+        color={tone === 'warning' ? palette.stamp : palette.navy}
+      />
+      <View className="ml-3 flex-1">
+        <Text className={`text-[11px] font-extrabold uppercase tracking-stamp border rounded-[4px] self-start px-1.5 py-0.5 mb-1 ${stamp}`}>
+          {label}
+        </Text>
+        <Text className="text-body text-ink leading-reading">{text}</Text>
+      </View>
     </View>
+  );
+}
+
+/** A small tabular caption for the bottom of a list. */
+export function Footnote({ children }: { children: ReactNode }) {
+  return (
+    <Text className="text-label text-ink-mute text-center mt-2 mb-6 leading-reading">{children}</Text>
   );
 }

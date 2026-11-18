@@ -65,13 +65,12 @@ describe('Document checklist screen', () => {
   it('uses the standard exam list and tracks progress', async () => {
     mockParams = { phase: 'exam' };
     render(<DocumentChecklistScreen />);
-    await waitFor(() => expect(screen.getByText('0 of 5 ready')).toBeTruthy());
-    expect(screen.getByText('5 documents still needed')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('5 documents still needed')).toBeTruthy());
 
     await act(async () => {
       fireEvent.press(screen.getByRole('checkbox', { name: 'Ballpoint Pen' }));
     });
-    expect(screen.getByText('1 of 5 ready')).toBeTruthy();
+    expect(screen.getByText('4 documents still needed')).toBeTruthy();
     expect(JSON.parse((await AsyncStorage.getItem('docs:v1:general:exam')) ?? '{}')).toEqual({ pen: true });
   });
 });

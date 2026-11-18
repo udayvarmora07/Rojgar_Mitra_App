@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Linking, ScrollView, Text, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useTranslation } from "react-i18next";
+import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getDocumentsRequired,
   getJobById,
@@ -10,53 +11,26 @@ import {
   DocumentRequired,
   Job,
   JobDetail,
-} from "../../lib/supabase";
-import { formatDate } from "../../lib/deadline";
-import { isSafeWebUrl } from "../../lib/url";
-import { useLanguage } from "../../hooks/useLanguage";
-import { Header } from "../../components/ui/Header";
-import { Card, SectionTitle } from "../../components/ui/Card";
-import { Button } from "../../components/ui/Button";
-import { EmptyState, LoadingState } from "../../components/ui/States";
-import { DeadlineBadge } from "../../components/jobs/DeadlineBadge";
-
-type IconName = keyof typeof Ionicons.glyphMap;
-
-function InfoRow({
-  icon,
-  label,
-  value,
-  danger,
-}: {
-  icon: IconName;
-  label: string;
-  value: string;
-  danger?: boolean;
-}) {
-  return (
-    <View
-      accessible
-      accessibilityLabel={`${label}: ${value}`}
-      className="flex-row items-start mb-4"
-    >
-      <Ionicons name={icon} size={26} color={danger ? "#DC2626" : "#1E3A8A"} />
-      <View className="ml-3 flex-1">
-        <Text className="text-lg text-gray-700">{label}</Text>
-        <Text
-          className={`text-lg font-semibold ${danger ? "text-alert" : "text-ink"}`}
-        >
-          {value}
-        </Text>
-      </View>
-    </View>
-  );
-}
+} from '../../lib/supabase';
+import { formatDate } from '../../lib/deadline';
+import { isSafeWebUrl } from '../../lib/url';
+import { useLanguage } from '../../hooks/useLanguage';
+import { palette } from '../../constants/theme';
+import { Masthead } from '../../components/ui/Masthead';
+import { LanguageToggle } from '../../components/ui/LanguagePicker';
+import { SectionHeading } from '../../components/ui/SectionHeading';
+import { Screen } from '../../components/ui/Screen';
+import { Fact } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { EmptyState, Footnote, LoadingState } from '../../components/ui/States';
+import { DeadlineBadge } from '../../components/jobs/DeadlineBadge';
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
   const { language } = useLanguage();
+  const insets = useSafeAreaInsets();
   const [job, setJob] = useState<Job | null>(null);
   const [details, setDetails] = useState<JobDetail[]>([]);
   const [documents, setDocuments] = useState<DocumentRequired[]>([]);
@@ -75,13 +49,11 @@ export default function JobDetailScreen() {
         getJobDetails(id),
         getDocumentsRequired(id),
       ]);
-      if (jobData.status === "rejected") throw jobData.reason;
+      if (jobData.status === 'rejected') throw jobData.reason;
       setJob(jobData.value);
-      setDetails(detailResult.status === "fulfilled" ? detailResult.value : []);
-      setDocuments(docResult.status === "fulfilled" ? docResult.value : []);
-      setPartialFailure(
-        detailResult.status === "rejected" || docResult.status === "rejected",
-      );
+      setDetails(detailResult.status === 'fulfilled' ? detailResult.value : []);
+      setDocuments(docResult.status === 'fulfilled' ? docResult.value : []);
+      setPartialFailure(detailResult.status === 'rejected' || docResult.status === 'rejected');
     } catch {
       setFailed(true);
     } finally {
@@ -93,186 +65,146 @@ export default function JobDetailScreen() {
     load();
   }, [load]);
 
-  const back = () => (router.canGoBack() ? router.back() : router.replace("/"));
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   const openSource = async () => {
     if (!isSafeWebUrl(job?.source_link)) return;
     try {
       await Linking.openURL(job.source_link.trim());
     } catch {
-      Alert.alert(t("linkError"));
+      Alert.alert(t('linkError'));
     }
   };
 
   if (loading) {
     return (
-      <View className="flex-1 bg-surface">
-        <Header title={t("jobInfo")} onBack={back} />
-        <LoadingState label={t("loading")} />
-      </View>
+      <Screen>
+        <Masthead title={t('jobDetails')} onBack={back} right={<LanguageToggle />} />
+        <LoadingState label={t('loading')} />
+      </Screen>
     );
   }
 
   if (!job) {
     return (
-      <View className="flex-1 bg-surface">
-        <Header title={t("jobInfo")} onBack={back} />
+      <Screen>
+        <Masthead title={t('jobDetails')} onBack={back} right={<LanguageToggle />} />
         <View className="p-4">
           <EmptyState
             icon="alert-circle-outline"
-            title={failed ? t("error") : t("jobNotFound")}
+            title={failed ? t('error') : t('jobNotFound')}
             action={
-              <Button
-                label={failed ? t("retry") : t("goBack")}
-                onPress={failed ? load : back}
-              />
+              <Button label={failed ? t('retry') : t('goBack')} onPress={failed ? load : back} />
             }
           />
         </View>
-      </View>
+      </Screen>
     );
   }
 
-  const applicationDocs = documents.filter((d) => d.phase === "Application");
-  const examDocs = documents.filter((d) => d.phase === "Exam Center");
+  const applicationDocs = documents.filter((d) => d.phase === 'Application');
+  const examDocs = documents.filter((d) => d.phase === 'Exam Center');
+  const canApply = isSafeWebUrl(job.source_link);
 
   return (
-    <View className="flex-1 bg-surface">
-      <Header title={job.title} subtitle={job.department} onBack={back} />
+    <Screen>
+      <Masthead
+        title={t('jobDetails')}
+        subtitle={job.department}
+        onBack={back}
+        right={<LanguageToggle />}
+      />
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 24 }}
       >
         {partialFailure ? (
           <View className="mb-4">
             <EmptyState
               icon="cloud-offline-outline"
-              title={t("loadFailed")}
-              hint={t("loadFailedHint")}
-              action={
-                <Button icon="refresh" label={t("retry")} onPress={load} />
-              }
+              title={t('loadFailed')}
+              hint={t('loadFailedHint')}
+              action={<Button icon="refresh" label={t('retry')} onPress={load} />}
             />
           </View>
         ) : null}
 
-        <Card>
-          <SectionTitle>{t("jobInfo")}</SectionTitle>
-          <InfoRow
-            icon="business-outline"
-            label={t("department")}
-            value={job.department}
-          />
-          <InfoRow
-            icon="calendar-outline"
-            label={t("postDate")}
-            value={formatDate(job.post_date, language, "long")}
-          />
-          <InfoRow
-            icon="time-outline"
-            label={t("deadline")}
-            value={formatDate(job.deadline, language, "long")}
-            danger
-          />
-          {job.vacancies != null ? (
-            <InfoRow
-              icon="people-outline"
-              label={t("vacancies")}
-              value={t("vacancyCount", { count: job.vacancies })}
-            />
-          ) : null}
-          {job.qualification ? (
-            <InfoRow
-              icon="school-outline"
-              label={t("qualification")}
-              value={job.qualification}
-            />
-          ) : null}
-          {job.advertisement_no ? (
-            <InfoRow
-              icon="document-outline"
-              label={t("advertisementNo")}
-              value={job.advertisement_no}
-            />
-          ) : null}
-          {job.salary ? (
-            <InfoRow
-              icon="cash-outline"
-              label={t("salary")}
-              value={job.salary}
-            />
-          ) : null}
-          <DeadlineBadge deadline={job.deadline} />
-        </Card>
+        <View className="bg-card border border-rule rounded-card p-5 mb-1">
+          <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute">
+            {t('noticeLabel')}
+          </Text>
+          <Text className="text-[26px] leading-[32px] font-extrabold text-ink tracking-tight mt-2">
+            {job.title}
+          </Text>
+          <View className="mt-4 p-3 rounded-control bg-navy-tint border border-navy-line">
+            <DeadlineBadge deadline={job.deadline} />
+          </View>
+        </View>
 
-        <Card>
-          <SectionTitle>{t("eligibility")}</SectionTitle>
+        <SectionHeading title={t('jobInfo')} />
+        <View className="bg-card border border-rule rounded-card px-5">
+          {job.vacancies != null ? (
+            <Fact label={t('vacancies')} value={t('vacancyCount', { count: job.vacancies })} />
+          ) : null}
+          {job.qualification ? <Fact label={t('qualification')} value={job.qualification} /> : null}
+          {job.salary ? <Fact label={t('salary')} value={job.salary} /> : null}
+          <Fact label={t('postDate')} value={formatDate(job.post_date, language, 'long')} />
+          {job.advertisement_no ? (
+            <Fact label={t('advertisementNo')} value={job.advertisement_no} />
+          ) : null}
+        </View>
+
+        <SectionHeading title={t('eligibility')} />
+        <View className="bg-card border border-rule rounded-card px-5">
           {details.length === 0 && !partialFailure ? (
-            <Text className="text-lg text-gray-700">
-              {t("noEligibilityInfo")}
+            <Text className="text-body text-ink-soft leading-reading py-4">
+              {t('noEligibilityInfo')}
             </Text>
           ) : (
             details.map((detail) => (
               <View key={detail.id}>
-                <InfoRow
-                  icon="person-outline"
-                  label={t("ageLimit")}
-                  value={detail.age_limit}
-                />
-                <InfoRow
-                  icon="school-outline"
-                  label={t("qualification")}
-                  value={detail.required_qualifications}
-                />
+                <Fact label={t('ageLimit')} value={detail.age_limit} />
+                <Fact label={t('qualification')} value={detail.required_qualifications} />
                 {detail.application_fees ? (
-                  <InfoRow
-                    icon="card-outline"
-                    label={t("fees")}
-                    value={detail.application_fees}
-                  />
+                  <Fact label={t('fees')} value={detail.application_fees} />
                 ) : null}
               </View>
             ))
           )}
-          <Button
-            variant="secondary"
-            icon="checkmark-done"
-            label={t("checkEligibility")}
-            onPress={() =>
-              router.push({
-                pathname: "/eligibility/[jobId]",
-                params: { jobId: job.id },
-              })
-            }
-          />
-        </Card>
+          <View className="py-4">
+            <Button
+              variant="secondary"
+              icon="checkmark-done"
+              label={t('checkEligibility')}
+              onPress={() =>
+                router.push({ pathname: '/eligibility/[jobId]', params: { jobId: job.id } })
+              }
+            />
+          </View>
+        </View>
 
-        <Card>
-          <SectionTitle>{t("requiredDocuments")}</SectionTitle>
+        <SectionHeading title={t('requiredDocuments')} />
+        <View className="bg-card border border-rule rounded-card p-5">
           {documents.length === 0 ? (
-            <Text className="text-lg text-gray-700 mb-4">
-              {t("noDocumentsInfo")}
+            <Text className="text-body text-ink-soft leading-reading mb-4">
+              {t('noDocumentsInfo')}
             </Text>
           ) : (
             [
-              { title: t("documentsToApply"), list: applicationDocs },
-              { title: t("documentsForExam"), list: examDocs },
+              { title: t('documentsToApply'), list: applicationDocs },
+              { title: t('documentsForExam'), list: examDocs },
             ]
               .filter((group) => group.list.length > 0)
               .map((group) => (
                 <View key={group.title} className="mb-4">
-                  <Text className="text-lg font-bold text-primary mb-2">
+                  <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute mb-2">
                     {group.title}
                   </Text>
                   {group.list.map((doc) => (
-                    <View key={doc.id} className="flex-row items-center mb-2">
-                      <Ionicons
-                        name="document-text-outline"
-                        size={22}
-                        color="#047857"
-                      />
-                      <Text className="text-lg text-ink ml-2 flex-1">
+                    <View key={doc.id} className="flex-row items-center py-1.5">
+                      <Ionicons name="document-text-outline" size={20} color={palette.success} />
+                      <Text className="text-body text-ink ml-2.5 flex-1 leading-reading">
                         {doc.document_name}
                       </Text>
                     </View>
@@ -283,29 +215,44 @@ export default function JobDetailScreen() {
           <Button
             variant="secondary"
             icon="list"
-            label={t("viewDocuments")}
-            onPress={() =>
-              router.push({ pathname: "/documents", params: { jobId: job.id } })
-            }
-          />
-        </Card>
-
-        <View className="gap-3">
-          {isSafeWebUrl(job.source_link) ? (
-            <Button
-              variant="accent"
-              icon="open-outline"
-              label={t("applyOnline")}
-              onPress={openSource}
-            />
-          ) : null}
-          <Button
-            icon="school"
-            label={t("startPractice")}
-            onPress={() => router.push("/practice")}
+            label={t('viewDocuments')}
+            onPress={() => router.push({ pathname: '/documents', params: { jobId: job.id } })}
           />
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${t('startPractice')}. ${t('quickPracticeHint')}`}
+          onPress={() => router.push('/practice')}
+          className="bg-navy-tint border border-navy-line rounded-card p-4 flex-row items-center mt-1 active:opacity-80"
+        >
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="w-10 h-10 rounded-control border border-navy-line bg-card items-center justify-center"
+          >
+            <Ionicons name="school-outline" size={22} color={palette.navy} />
+          </View>
+          <View className="flex-1 ml-3">
+            <Text className="text-body font-bold text-ink">{t('startPractice')}</Text>
+            <Text className="text-label text-ink-soft mt-0.5">{t('quickPracticeHint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={palette.navy} />
+        </Pressable>
+
+        <Footnote>{t('officialNote')}</Footnote>
       </ScrollView>
-    </View>
+
+      <View
+        className="bg-card border-t border-rule px-4 pt-3"
+        style={{ paddingBottom: insets.bottom + 12 }}
+      >
+        <Button
+          icon={canApply ? 'open-outline' : 'school-outline'}
+          label={canApply ? t('applyOnline') : t('startPractice')}
+          onPress={canApply ? openSource : () => router.push('/practice')}
+        />
+      </View>
+    </Screen>
   );
 }

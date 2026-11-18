@@ -1,19 +1,23 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
+import { palette } from '../../constants/theme';
 import { formatClock } from '../../hooks/useCountdown';
+import { Mono } from '../ui/Mono';
 
-/** Turns red in the last minute. */
+/** Turns vermilion in the last minute, and the accessible name always states the time. */
 export function Timer({ seconds }: { seconds: number }) {
   const { t } = useTranslation();
   const low = seconds <= 60;
   return (
     <View
       accessibilityLabel={`${t('timeLeft')} ${formatClock(seconds)}`}
-      className={`flex-row items-center rounded-xl px-3 min-h-[44px] ${low ? 'bg-alert' : 'bg-blue-800'}`}
+      className={`flex-row items-center rounded-[6px] border px-2.5 min-h-[44px] ${
+        low ? 'bg-stamp border-stamp' : 'bg-white/10 border-navy-line'
+      }`}
     >
-      <Ionicons name="time-outline" size={22} color="#FFFFFF" />
-      <Text className="text-white text-xl font-bold ml-2">{formatClock(seconds)}</Text>
+      <Ionicons name="time-outline" size={18} color={palette.card} />
+      <Mono className="text-white text-body font-bold ml-1.5">{formatClock(seconds)}</Mono>
     </View>
   );
 }

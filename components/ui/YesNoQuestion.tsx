@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
+import { curve, palette } from '../../constants/theme';
 
 type Props = { question: string; value: boolean | undefined; onChange: (value: boolean) => void };
 
@@ -10,7 +11,7 @@ export function YesNoQuestion({ question, value, onChange }: Props) {
   const option = (answer: boolean) => {
     const selected = value === answer;
     const label = answer ? t('yes') : t('no');
-    const selectedBox = answer ? 'bg-accent border-accent' : 'bg-alert border-alert';
+    const selectedBox = answer ? 'bg-success border-success' : 'bg-stamp border-stamp';
     return (
       <Pressable
         accessibilityRole="radio"
@@ -18,24 +19,27 @@ export function YesNoQuestion({ question, value, onChange }: Props) {
         aria-checked={selected}
         accessibilityLabel={`${question} ${label}`}
         onPress={() => onChange(answer)}
-        className={`flex-1 min-h-[56px] rounded-xl border-2 flex-row items-center justify-center active:opacity-80 ${
-          selected ? selectedBox : 'bg-white border-gray-300'
-        } ${answer ? 'mr-2' : 'ml-2'}`}
+        style={curve}
+        className={`flex-1 min-h-[56px] rounded-control border-[1.5px] flex-row items-center justify-center active:opacity-80 ${
+          selected ? selectedBox : 'bg-card border-rule'
+        }`}
       >
         <Ionicons
-          name={answer ? 'checkmark-circle' : 'close-circle'}
-          size={26}
-          color={selected ? '#FFFFFF' : answer ? '#047857' : '#DC2626'}
+          name={answer ? 'checkmark-circle-outline' : 'close-circle-outline'}
+          size={22}
+          color={selected ? palette.card : answer ? palette.success : palette.stamp}
         />
-        <Text className={`text-xl font-bold ml-2 ${selected ? 'text-white' : 'text-ink'}`}>{label}</Text>
+        <Text className={`text-body font-bold ml-2 ${selected ? 'text-white' : 'text-ink'}`}>
+          {label}
+        </Text>
       </Pressable>
     );
   };
 
   return (
-    <View className="bg-white rounded-card p-5 mb-4 border border-gray-200">
-      <Text className="text-xl font-semibold text-ink mb-4">{question}</Text>
-      <View accessibilityRole="radiogroup" className="flex-row">
+    <View className="py-4">
+      <Text className="text-body font-semibold text-ink mb-3 leading-reading">{question}</Text>
+      <View accessibilityRole="radiogroup" className="flex-row gap-3">
         {option(true)}
         {option(false)}
       </View>

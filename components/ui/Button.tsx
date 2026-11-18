@@ -1,13 +1,14 @@
 import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { curve, palette } from '../../constants/theme';
 
 type Variant = 'primary' | 'accent' | 'secondary' | 'danger';
 
 const VARIANTS: Record<Variant, { box: string; text: string; icon: string }> = {
-  primary: { box: 'bg-primary', text: 'text-white', icon: '#FFFFFF' },
-  accent: { box: 'bg-accent', text: 'text-white', icon: '#FFFFFF' },
-  secondary: { box: 'bg-white border-2 border-primary', text: 'text-primary', icon: '#1E3A8A' },
-  danger: { box: 'bg-white border-2 border-alert', text: 'text-alert', icon: '#DC2626' },
+  primary: { box: 'bg-navy border-navy', text: 'text-white', icon: palette.card },
+  accent: { box: 'bg-success border-success', text: 'text-white', icon: palette.card },
+  secondary: { box: 'bg-card border-navy', text: 'text-navy', icon: palette.navy },
+  danger: { box: 'bg-card border-stamp', text: 'text-stamp', icon: palette.stamp },
 };
 
 type Props = {
@@ -20,8 +21,16 @@ type Props = {
   className?: string;
 };
 
-/** Large (min 56dp tall) full-width button - PRD 13 asks for >= 48dp targets. */
-export function Button({ label, onPress, variant = 'primary', icon, disabled, accessibilityHint, className = '' }: Props) {
+/** 56dp tall, 12px radius, one clear label. No gradients, no floating shadows. */
+export function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  icon,
+  disabled,
+  accessibilityHint,
+  className = '',
+}: Props) {
   const v = VARIANTS[variant];
   return (
     <Pressable
@@ -31,14 +40,17 @@ export function Button({ label, onPress, variant = 'primary', icon, disabled, ac
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      className={`min-h-[56px] rounded-xl px-5 py-4 flex-row items-center justify-center active:opacity-80 ${v.box} ${disabled ? 'opacity-50' : ''} ${className}`}
+      style={curve}
+      className={`min-h-[56px] rounded-control border-[1.5px] px-5 py-4 flex-row items-center justify-center active:opacity-80 ${v.box} ${
+        disabled ? 'opacity-50' : ''
+      } ${className}`}
     >
       {icon ? (
         <View className="mr-2">
-          <Ionicons name={icon} size={24} color={v.icon} />
+          <Ionicons name={icon} size={22} color={v.icon} />
         </View>
       ) : null}
-      <Text className={`text-lg font-bold text-center ${v.text}`}>{label}</Text>
+      <Text className={`text-label font-bold text-center ${v.text}`}>{label}</Text>
     </Pressable>
   );
 }

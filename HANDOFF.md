@@ -4,7 +4,105 @@ Written for a fresh session with no memory of prior work. Everything under **Ver
 and observed in the session that wrote this file. Everything under **Open** is genuinely open.
 
 Read in this order: this file, then `PRODUCT.md` (brand direction), then `AGENTS.md` (standing
-directives from the owner), then `PRD.md` (requirements).
+directives from the owner), then `PRD.md` (requirements). `DESIGN.md` is the token and
+component record for the current visual system.
+
+---
+
+## 0. Latest: complete UI redesign (2026-11-18)
+
+The whole frontend was replaced, not polished. The previous system was consistent but read as
+a generic Tailwind card stack; the new one has a visual point of view grounded in the
+audience's own artefacts — the employment-exchange notice board, the index card, the hall
+ticket, the stamped form. Read `DESIGN.md` before touching UI. The direction in one line: **a
+government job board that reads like a well-printed notice.**
+
+### What changed
+
+- **Visual world.** Deep-navy masthead with an RM monogram and a 3px vermilion rule; a
+  tear-off date stub on every job card; rectangular status stamps that always carry text;
+  ruled field rows; mono numerals for dates, counts and scores. No shadows, no gradients,
+  no pill rows, no emoji.
+- **Token layer.** `design/tokens.json` is the single source of colour and radius values.
+  `tailwind.config.js` and `constants/theme.ts` both read it. **No raw hex remains in any
+  TSX file.** `constants/theme.ts` also exports `curve` (`borderCurve: 'continuous'`) used
+  on non-capsule rounded surfaces.
+- **New primitives.** `Screen`, `Masthead`, `SectionHeading`, `ActionCard`, `DateStub`,
+  `Stamp`, `BottomSheet`, `Mono`, plus rebuilt `Button`, `Card`, `States`, `ProgressBar`,
+  `LanguagePicker`, `ChecklistItem`, `YesNoQuestion`, `JobCard`, `DeadlineBadge`,
+  `FilterChips`, `OptionButton`, `QuestionCard`, `Timer`. The old `Header.tsx` was deleted.
+- **Home.** A filled primary jobs action carrying the live count (`94` / `OPEN NOTICES`),
+  two equal-width peer actions (Practice, Documents), then latest notices. The closing
+  count is folded into the primary hint rather than a separate stat strip.
+- **Jobs.** Search in the masthead, a three-part deadline segment, and a Filters button that
+  opens a searchable department sheet with counts and a **pinned** "Show N jobs" footer.
+- **Job detail.** A `NOTICE` block (title, deadline panel), labelled facts, eligibility,
+  documents, practice link, and a **sticky Apply bar** at the bottom edge. The duplicate
+  department label and duplicate advert number were removed.
+- **Practice / test / results.** 2-column topic grid with monochrome icons, a ruled timer
+  switch, ruled history with mono scores, white-on-navy progress, and a verdict stamp on the
+  result panel.
+- **Documents / eligibility / settings.** Overall progress first; checklist rows with square
+  checkboxes and written Ready / Not Ready; grouped eligibility questions and an `ELIGIBLE` /
+  `NOT ELIGIBLE` stamp; language first in Settings.
+- **Copy.** Added the keys the new layouts need in all three languages (`appKicker`,
+  `openNotices`, `closingThisWeekCount`, `filters`, `searchDepartments`, `showResults`,
+  `jobDetails`, `myChecklists`, `dataSection`, `officialNote`, `selected`, `scoreGood`,
+  `scoreKeepPractising`, `eligibleStamp`, `notEligibleStamp`, `offlineLabel`, `noticeLabel`).
+  `eligibleStamp` / `notEligibleStamp` keep the result verdict in the stamp while the full
+  sentence stays as the title.
+- **Launcher identity.** `assets/icon.png`, `adaptive-icon.png`, `splash-icon.png` and
+  `favicon.png` were regenerated: navy field, white rounded frame, RM monogram, vermilion
+  rule. `app.json` splash and adaptive-icon backgrounds are now `#14315B`, so the adaptive
+  foreground is never white-on-white.
+- **Responsive web.** The content column is capped at 600px and centred; the tab bar is
+  centred to the same width. On a phone it is edge to edge.
+- **Tests.** `__tests__/homeTiles.test.tsx` now asserts the primary/peer action structure and
+  equal-width peers; `__tests__/components.test.tsx` asserts the segmented control (not pills)
+  and the rectangular deadline stamp; `__tests__/screens.test.tsx` asserts the pending-document
+  count rather than the removed duplicate "x of y ready" line.
+
+### Verified in this session (run and observed)
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **8 suites, 73 tests pass** |
+| Web E2E | `bash scripts/e2e-web.sh` (hosted env exported from `.env`) | pass: 94 live jobs, export, home, live cards, tabs, axe home |
+| Four-tab axe | `KEEP_BUILD=1 A11Y_OUT=/tmp/redesign-build bash scripts/a11y-audit.sh` | **0 critical, 0 serious** on Home / Jobs / Practice / Settings |
+| Slop scan | `devibe_scan.py .` | **0 findings, vibe score 0** |
+
+The web bundle rebuilt to **1.57 MB JS + 14.9 KB CSS** with the per-family icon import still in
+place. Visual evidence is in `design/references/`:
+`app-home-redesign.png`, `app-jobs-redesign.png`, `app-detail-redesign.png`,
+`app-practice-redesign.png`, `app-test-redesign.png`, `app-results-redesign.png`,
+`app-settings-redesign.png`, `app-documents-redesign.png`, `app-checklist-redesign.png`,
+`app-eligibility-redesign.png`, `app-home-gu-redesign.png`, `app-desktop-redesign.png`.
+
+### Not run / open
+
+- **No native device screenshots in this session.** There is still no Android emulator binary
+  or system image on this machine (`§2`), and no iOS simulator was used. The layout was
+  verified at 390×844 in a real browser, which covers the web build and most layout, but the
+  native-only details (`borderCurve` squircles, safe-area math under the status bar, tab-bar
+  rendering, the sticky Apply bar with the keyboard closed) should be checked in Expo Go or on
+  a device before release.
+- **No commit or push.** The owner declined auto-git and per-change commits; `§9` still holds.
+- **The generated AI question can be long** (e.g. a multi-part matching question fills the
+  screen). The UI scrolls and keeps the footer pinned, but the content policy for prompt
+  length lives in `supabase/functions/generate-test`, not the UI. Worth tightening separately.
+- **Android hardware back / predictive back** was not exercised. The app still uses the
+  existing Expo Router stack; no navigation behavior was changed.
+
+### Resume prompt for a fresh session
+
+> Read `HANDOFF.md` §0, `DESIGN.md`, `PRODUCT.md`, and `AGENTS.md`. The UI redesign is
+> complete and the gates are green. Run `npm run typecheck && npm run lint && NODE_ENV=test
+> npx jest`, then `bash scripts/a11y-audit.sh`; only touch UI through the tokens in
+> `design/tokens.json` and the primitives in `components/ui/`. For visual work, build with
+> `env -u NODE_ENV npx expo export --platform web --output-dir /tmp/redesign-build --clear`,
+> serve it, and compare against `design/references/app-*-redesign.png`.
 
 ---
 

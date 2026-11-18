@@ -111,7 +111,8 @@ describe('JobCard', () => {
     const onPress = jest.fn();
     render(<JobCard job={job} onPress={onPress} />);
     expect(screen.getByText('₹19,950')).toBeTruthy();
-    fireEvent.press(screen.getByRole('button', { name: 'Junior Clerk, Revenue' }));
+    // The accessible name carries the deadline as well as the post and department.
+    fireEvent.press(screen.getByRole('button', { name: /Junior Clerk, Revenue/ }));
     expect(onPress).toHaveBeenCalled();
   });
 });
@@ -139,23 +140,29 @@ describe('FilterChips', () => {
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 
-  it('is a rectangular control, not a pill (PRODUCT.md 4)', () => {
+  it('is a segmented control, not a row of pills', () => {
     render(<FilterChips chips={chips} selected={null} onSelect={() => {}} accessibilityLabel="Deadline" />);
     for (const chip of chips) {
-      const control = screen.getByRole('button', { name: chip.label });
-      expect(control.props.className).toContain('rounded-control');
-      expect(control.props.className).not.toContain('rounded-full'); // unslop-ignore: asserts the pill class is absent
+      const segment = screen.getByRole('button', { name: chip.label });
+      // 8px inner radius inside the 12px track, so the radii stay concentric.
+      expect(segment.props.className).toContain('rounded-[8px]');
+      expect(segment.props.className).not.toContain('rounded-full'); // unslop-ignore: asserts the pill class is absent
     }
   });
 });
 
 describe('DeadlineBadge', () => {
-  it('keeps the countdown pill - the one legitimate pill - and carries the status as text', () => {
+  it('stamps the status as a rectangle and carries the countdown as text', () => {
     const now = new Date(2026, 10, 18);
     render(<DeadlineBadge deadline="2026-11-21" now={now} />);
     const countdown = screen.getByText('3 days left');
     expect(screen.getByText(/Last Date: 21 Nov 2026/)).toBeTruthy();
-    expect(countdown.parent?.parent?.props.className).toContain('rounded-full'); // unslop-ignore: the status pill is intentional
+
+    // The stamp is a 6px rectangle, not a pill; the countdown sits inside it.
+    let node = countdown.parent;
+    while (node && !String(node.props?.className ?? '').includes('rounded-[6px]')) node = node.parent;
+    expect(node).toBeTruthy(); // unslop-ignore: the status stamp is intentional
+    expect(String(node?.props.className)).not.toContain('rounded-full'); // unslop-ignore: asserts the pill class is absent
   });
 
   it('marks an expired advertisement as Closed in words, not colour alone', () => {

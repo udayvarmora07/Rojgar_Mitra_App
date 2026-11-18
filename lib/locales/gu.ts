@@ -4,6 +4,7 @@ const gu: TranslationShape = {
   // General
   appName: 'રોજગાર મિત્ર',
   appTagline: 'સરકારી નોકરી માટે તમારો મિત્ર',
+  appKicker: 'ગુજરાત સરકારી નોકરીઓ',
   loading: 'લોડ થઈ રહ્યું છે...',
   error: 'કંઈક ખોટું થયું',
   retry: 'ફરી પ્રયત્ન કરો',
@@ -12,6 +13,7 @@ const gu: TranslationShape = {
   yes: 'હા',
   no: 'ના',
   close: 'બંધ કરો',
+  selected: 'પસંદ કરેલ',
   submit: 'જમા કરો',
   next: 'આગળ',
   previous: 'પાછળ',
@@ -20,10 +22,13 @@ const gu: TranslationShape = {
   yourScore: 'તમારો સ્કોર',
   correct: 'સાચું',
   incorrect: 'ખોટું',
+  offlineLabel: 'ઑફલાઇન',
+  noticeLabel: 'જાહેરાત',
   offlineBanner: 'ઇન્ટરનેટ નથી. સાચવેલી નોકરીઓ બતાવીએ છીએ.',
   loadFailed: 'નોકરીઓ લોડ ન થઈ',
   loadFailedHint: 'તમારું ઇન્ટરનેટ તપાસો અને ફરી પ્રયત્ન કરો.',
   lastUpdated: 'છેલ્લે અપડેટ: {{date}}',
+  officialNote: 'અરજી કરતા પહેલા હંમેશા સત્તાવાર જાહેરાત ચકાસો.',
 
   // Tabs
   tabHome: 'ઘર',
@@ -39,8 +44,14 @@ const gu: TranslationShape = {
   viewAllJobs: 'બધી નોકરીઓ જુઓ',
   quickActions: 'તમે શું કરવા માંગો છો?',
   quickJobs: 'નોકરીઓ જુઓ',
+  quickJobsHint: 'ગુજરાતની બધી સરકારી જાહેરાતો એક યાદીમાં',
   quickPractice: 'પ્રેક્ટિસ ટેસ્ટ',
+  quickPracticeHint: '10 પ્રશ્નો · મફત',
   quickDocuments: 'મારા દસ્તાવેજો',
+  quickDocumentsHint: 'અરજી અને પરીક્ષાના દિવસ માટે',
+  openNotices: 'ખુલ્લી જાહેરાતો',
+  closingThisWeekCount_one: '{{count}} જાહેરાત આ અઠવાડિયે બંધ થશે',
+  closingThisWeekCount_other: '{{count}} જાહેરાતો આ અઠવાડિયે બંધ થશે',
 
   // Deadline
   lastDate: 'છેલ્લી તારીખ',
@@ -52,6 +63,12 @@ const gu: TranslationShape = {
   // Jobs list
   allJobs: 'બધી નોકરીઓ',
   searchJobs: 'નોકરી અથવા વિભાગ શોધો',
+  clearSearch: 'શોધ સાફ કરો',
+  filters: 'ફિલ્ટર',
+  searchDepartments: 'વિભાગ શોધો',
+  sortedByLastDate: 'છેલ્લી તારીખ મુજબ',
+  showResults_one: '{{count}} નોકરી બતાવો',
+  showResults_other: '{{count}} નોકરીઓ બતાવો',
   filterAll: 'બધી',
   filterClosingSoon: 'જલ્દી બંધ થશે',
   filterOpen: 'ચાલુ',
@@ -67,6 +84,7 @@ const gu: TranslationShape = {
 
   // Job details
   jobInfo: 'નોકરીની માહિતી',
+  jobDetails: 'નોકરીની વિગત',
   postDate: 'જાહેરાતની તારીખ',
   deadline: 'અરજીની છેલ્લી તારીખ',
   salary: 'પગાર',
@@ -102,8 +120,10 @@ const gu: TranslationShape = {
   },
   answerAll: 'પરિણામ જોવા માટે બધા પ્રશ્નોના જવાબ આપો',
   eligibleTitle: 'તમે પાત્ર હોઈ શકો છો!',
+  eligibleStamp: 'પાત્ર',
   eligibleNext: 'દસ્તાવેજો તૈયાર રાખો અને છેલ્લી તારીખ પહેલા અરજી કરો.',
   notEligibleTitle: 'તમે કદાચ પાત્ર નથી',
+  notEligibleStamp: 'પાત્ર નથી',
   notEligibleNext: 'તમે શું કરી શકો:',
   eligibilityDisclaimer: 'આ ફક્ત માર્ગદર્શન છે. હંમેશા સત્તાવાર જાહેરાત વાંચો.',
   resetAnswers: 'ફરી શરૂ કરો',
@@ -111,6 +131,7 @@ const gu: TranslationShape = {
   // Documents
   documentsTitle: 'દસ્તાવેજ યાદી',
   documentsIntro: 'દસ્તાવેજ તૈયાર થાય ત્યારે તેના પર ટેપ કરો.',
+  myChecklists: 'તમારી યાદીઓ',
   applicationDocs: 'અરજી માટે',
   examDocs: 'પરીક્ષાના દિવસે',
   progressLabel: 'પ્રગતિ',
@@ -164,6 +185,8 @@ const gu: TranslationShape = {
   explanation: 'સમજૂતી',
   history: 'તમારા જૂના સ્કોર',
   noHistory: 'હજુ કોઈ ટેસ્ટ આપ્યો નથી. પહેલો ટેસ્ટ શરૂ કરો!',
+  scoreGood: 'સરસ કામ',
+  scoreKeepPractising: 'પ્રેક્ટિસ ચાલુ રાખો',
   sourceBank: 'ઇન્ટરનેટ નથી: સાચવેલા પ્રશ્નો બતાવીએ છીએ',
   sourceCache: 'ઇન્ટરનેટ નથી: છેલ્લો ડાઉનલોડ કરેલો ટેસ્ટ બતાવીએ છીએ',
 
@@ -174,6 +197,7 @@ const gu: TranslationShape = {
   about: 'એપ વિશે',
   aboutText: 'રોજગાર મિત્ર ગુજરાતની સરકારી નોકરીની જાહેરાતો એક જગ્યાએ લાવે છે. અરજી કરતા પહેલા હંમેશા સત્તાવાર વેબસાઇટ પર વિગતો ચકાસો.',
   version: 'આવૃત્તિ {{version}}',
+  dataSection: 'સાચવેલો ડેટા',
   clearData: 'સાચવેલો ડેટા કાઢી નાખો',
   clearDataHint: 'આ ફોનમાંથી સાચવેલી નોકરીઓ, ટેસ્ટ સ્કોર અને યાદીઓ દૂર થશે',
   clearDataConfirm: 'આ ફોનમાંથી બધો સાચવેલો ડેટા કાઢી નાખવો છે?',

@@ -1,14 +1,21 @@
 import { ReactNode } from 'react';
 import { Text, View } from 'react-native';
+import { curve } from '../../constants/theme';
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <View className={`bg-white rounded-card p-5 mb-4 border border-gray-200 ${className}`}>{children}</View>;
+  return (
+    <View style={curve} className={`bg-card rounded-card p-5 mb-4 border border-rule ${className}`}>
+      {children}
+    </View>
+  );
 }
 
-export function SectionTitle({ children }: { children: ReactNode }) {
+/** A labelled field from the notice, set as a register entry rather than a form. */
+export function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <Text accessibilityRole="header" className="text-xl font-bold text-ink mb-4">
-      {children}
-    </Text>
+    <View className="py-3 border-b border-rule">
+      <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute">{label}</Text>
+      <Text className="text-body font-semibold text-ink mt-1 leading-reading">{value}</Text>
+    </View>
   );
 }

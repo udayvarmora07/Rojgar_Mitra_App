@@ -4,6 +4,7 @@ const hi: TranslationShape = {
   // General
   appName: 'रोजगार मित्र',
   appTagline: 'सरकारी नौकरी के लिए आपका मित्र',
+  appKicker: 'गुजरात सरकारी नौकरियाँ',
   loading: 'लोड हो रहा है...',
   error: 'कुछ गलत हो गया',
   retry: 'फिर से कोशिश करें',
@@ -12,6 +13,7 @@ const hi: TranslationShape = {
   yes: 'हाँ',
   no: 'नहीं',
   close: 'बंद करें',
+  selected: 'चुना गया',
   submit: 'जमा करें',
   next: 'अगला',
   previous: 'पिछला',
@@ -20,10 +22,13 @@ const hi: TranslationShape = {
   yourScore: 'आपके अंक',
   correct: 'सही',
   incorrect: 'गलत',
+  offlineLabel: 'ऑफ़लाइन',
+  noticeLabel: 'सूचना',
   offlineBanner: 'इंटरनेट नहीं है। सहेजी गई नौकरियां दिखा रहे हैं।',
   loadFailed: 'नौकरियां लोड नहीं हुईं',
   loadFailedHint: 'अपना इंटरनेट जांचें और फिर से कोशिश करें।',
   lastUpdated: 'आखिरी अपडेट: {{date}}',
+  officialNote: 'अरजी करने से पहले हमेशा सरकारी सूचना जाँचें।',
 
   // Tabs
   tabHome: 'होम',
@@ -39,8 +44,14 @@ const hi: TranslationShape = {
   viewAllJobs: 'सभी नौकरियां देखें',
   quickActions: 'आप क्या करना चाहते हैं?',
   quickJobs: 'नौकरियां देखें',
+  quickJobsHint: 'गुजरात की सभी सरकारी सूचनाएँ एक सूची में',
   quickPractice: 'प्रैक्टिस टेस्ट',
+  quickPracticeHint: '10 प्रश्न · मुफ़्त',
   quickDocuments: 'मेरे दस्तावेज',
+  quickDocumentsHint: 'अरजी और परीक्षा के दिन के लिए',
+  openNotices: 'खुली सूचनाएँ',
+  closingThisWeekCount_one: '{{count}} सूचना इस हफ़्ते बंद होगी',
+  closingThisWeekCount_other: '{{count}} सूचनाएँ इस हफ़्ते बंद होंगी',
 
   // Deadline
   lastDate: 'अंतिम तिथि',
@@ -52,6 +63,12 @@ const hi: TranslationShape = {
   // Jobs list
   allJobs: 'सभी नौकरियां',
   searchJobs: 'नौकरी या विभाग खोजें',
+  clearSearch: 'खोज साफ़ करें',
+  filters: 'फ़िल्टर',
+  searchDepartments: 'विभाग खोजें',
+  sortedByLastDate: 'अंतिम तारीख के क्रम में',
+  showResults_one: '{{count}} नौकरी दिखाएँ',
+  showResults_other: '{{count}} नौकरियाँ दिखाएँ',
   filterAll: 'सभी',
   filterClosingSoon: 'जल्द बंद होगी',
   filterOpen: 'खुली',
@@ -67,6 +84,7 @@ const hi: TranslationShape = {
 
   // Job details
   jobInfo: 'नौकरी की जानकारी',
+  jobDetails: 'नौकरी की जानकारी',
   postDate: 'विज्ञापन की तिथि',
   deadline: 'आवेदन की अंतिम तिथि',
   salary: 'वेतन',
@@ -102,8 +120,10 @@ const hi: TranslationShape = {
   },
   answerAll: 'परिणाम देखने के लिए सभी सवालों के जवाब दें',
   eligibleTitle: 'आप पात्र हो सकते हैं!',
-  eligibleNext: 'दस्तावेज तैयार रखें और अंतिम तिथि से पहले आवेदन करें।',
+  eligibleStamp: 'पात्र',
+  eligibleNext: 'दस्तावेज तैयार रखें और अंतिम तारीख से पहले अरजी करें।',
   notEligibleTitle: 'आप शायद पात्र नहीं हैं',
+  notEligibleStamp: 'पात्र नहीं',
   notEligibleNext: 'आप क्या कर सकते हैं:',
   eligibilityDisclaimer: 'यह केवल मार्गदर्शन है। हमेशा आधिकारिक अधिसूचना पढ़ें।',
   resetAnswers: 'फिर से शुरू करें',
@@ -111,6 +131,7 @@ const hi: TranslationShape = {
   // Documents
   documentsTitle: 'दस्तावेज सूची',
   documentsIntro: 'दस्तावेज तैयार होने पर उस पर टैप करें।',
+  myChecklists: 'आपकी सूचियाँ',
   applicationDocs: 'आवेदन के लिए',
   examDocs: 'परीक्षा के दिन',
   progressLabel: 'प्रगति',
@@ -164,6 +185,8 @@ const hi: TranslationShape = {
   explanation: 'व्याख्या',
   history: 'आपके पुराने अंक',
   noHistory: 'अभी कोई टेस्ट नहीं दिया। पहला टेस्ट शुरू करें!',
+  scoreGood: 'अच्छा काम',
+  scoreKeepPractising: 'अभ्यास जारी रखें',
   sourceBank: 'इंटरनेट नहीं: सहेजे गए प्रश्न दिखा रहे हैं',
   sourceCache: 'इंटरनेट नहीं: आपका पिछला डाउनलोड किया टेस्ट दिखा रहे हैं',
 
@@ -174,6 +197,7 @@ const hi: TranslationShape = {
   about: 'ऐप के बारे में',
   aboutText: 'रोजगार मित्र गुजरात की सरकारी नौकरियों की सूचनाएं एक जगह लाता है। आवेदन से पहले हमेशा आधिकारिक वेबसाइट पर जानकारी जांचें।',
   version: 'संस्करण {{version}}',
+  dataSection: 'सहेजा हुआ डेटा',
   clearData: 'सहेजा गया डेटा हटाएं',
   clearDataHint: 'इस फोन से सहेजी गई नौकरियां, टेस्ट अंक और सूचियां हट जाएंगी',
   clearDataConfirm: 'इस फोन से सारा सहेजा गया डेटा हटाना है?',

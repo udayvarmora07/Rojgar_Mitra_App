@@ -1,17 +1,48 @@
 import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { curve, palette } from '../../constants/theme';
 import type { OptionKey } from '../../constants/questionBank';
+import { Mono } from '../ui/Mono';
 
 export type OptionState = 'idle' | 'selected' | 'correct' | 'wrong';
 
-const STYLES: Record<OptionState, { box: string; badge: string; badgeText: string }> = {
-  idle: { box: 'bg-white border-gray-300', badge: 'bg-gray-200', badgeText: 'text-ink' },
-  selected: { box: 'bg-blue-50 border-primary', badge: 'bg-primary', badgeText: 'text-white' },
-  correct: { box: 'bg-emerald-50 border-accent', badge: 'bg-accent', badgeText: 'text-white' },
-  wrong: { box: 'bg-red-50 border-red-700', badge: 'bg-red-700', badgeText: 'text-white' },
+const STYLES: Record<
+  OptionState,
+  { box: string; badge: string; badgeText: string; text: string }
+> = {
+  idle: {
+    box: 'bg-card border-rule',
+    badge: 'bg-paper border-rule',
+    badgeText: 'text-ink-soft',
+    text: 'text-ink',
+  },
+  selected: {
+    box: 'bg-navy-tint border-navy',
+    badge: 'bg-navy border-navy',
+    badgeText: 'text-white',
+    text: 'text-ink',
+  },
+  correct: {
+    box: 'bg-open-bg border-open-border',
+    badge: 'bg-success border-success',
+    badgeText: 'text-white',
+    text: 'text-ink',
+  },
+  wrong: {
+    box: 'bg-closing-bg border-closing-border',
+    badge: 'bg-stamp border-stamp',
+    badgeText: 'text-white',
+    text: 'text-ink',
+  },
 };
 
-type Props = { option: OptionKey; text: string; state: OptionState; disabled?: boolean; onPress: () => void };
+type Props = {
+  option: OptionKey;
+  text: string;
+  state: OptionState;
+  disabled?: boolean;
+  onPress: () => void;
+};
 
 export function OptionButton({ option, text, state, disabled, onPress }: Props) {
   const s = STYLES[state];
@@ -23,14 +54,15 @@ export function OptionButton({ option, text, state, disabled, onPress }: Props) 
       accessibilityLabel={`${option}. ${text}`}
       disabled={disabled}
       onPress={onPress}
-      className={`min-h-[64px] flex-row items-center p-4 mb-3 rounded-xl border-2 active:opacity-80 ${s.box}`}
+      style={curve}
+      className={`min-h-[64px] flex-row items-center p-3.5 mb-3 rounded-control border-[1.5px] active:opacity-80 ${s.box}`}
     >
-      <View className={`w-11 h-11 rounded-full items-center justify-center ${s.badge}`}>
-        <Text className={`text-xl font-bold ${s.badgeText}`}>{option}</Text>
+      <View className={`w-9 h-9 rounded-[6px] border items-center justify-center ${s.badge}`}>
+        <Mono className={`text-[17px] font-bold ${s.badgeText}`}>{option}</Mono>
       </View>
-      <Text className="text-lg text-ink ml-4 flex-1">{text}</Text>
-      {state === 'correct' ? <Ionicons name="checkmark-circle" size={30} color="#047857" /> : null}
-      {state === 'wrong' ? <Ionicons name="close-circle" size={30} color="#DC2626" /> : null}
+      <Text className={`text-body ml-3.5 flex-1 leading-reading ${s.text}`}>{text}</Text>
+      {state === 'correct' ? <Ionicons name="checkmark-circle" size={24} color={palette.success} /> : null}
+      {state === 'wrong' ? <Ionicons name="close-circle" size={24} color={palette.stamp} /> : null}
     </Pressable>
   );
 }

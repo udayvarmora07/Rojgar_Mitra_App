@@ -1,17 +1,24 @@
 import { useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, Language } from '../../constants/languages';
+import { palette, curve } from '../../constants/theme';
 import { useLanguage } from '../../hooks/useLanguage';
+import { BottomSheet } from './BottomSheet';
 
-/** Big tappable list of the three languages, each shown in its own script. */
+/** The full language list, each language written in its own script. */
 export function LanguageOptions({ onSelected }: { onSelected?: (lang: Language) => void }) {
+  const { t } = useTranslation();
   const { language, setLanguage } = useLanguage();
 
   return (
-    <View accessibilityRole="radiogroup">
-      {LANGUAGES.map((lang) => {
+    <View
+      accessibilityRole="radiogroup"
+      style={curve}
+      className="border border-rule rounded-control overflow-hidden"
+    >
+      {LANGUAGES.map((lang, index) => {
         const selected = language === lang.code;
         return (
           <Pressable
@@ -24,15 +31,22 @@ export function LanguageOptions({ onSelected }: { onSelected?: (lang: Language) 
               await setLanguage(lang.code);
               onSelected?.(lang.code);
             }}
-            className={`min-h-[64px] p-4 rounded-xl mb-3 flex-row items-center justify-between border-2 active:opacity-80 ${
-              selected ? 'bg-blue-50 border-primary' : 'bg-gray-50 border-gray-200'
-            }`}
+            className={`min-h-[68px] px-4 py-3 flex-row items-center justify-between active:opacity-80 ${
+              index > 0 ? 'border-t border-rule' : ''
+            } ${selected ? 'bg-navy-tint' : 'bg-card'}`}
           >
-            <View>
-              <Text className="text-xl font-bold text-ink">{lang.nativeLabel}</Text>
-              <Text className="text-lg text-gray-600">{lang.label}</Text>
+            <View className="flex-1 pr-3">
+              <Text className="text-[20px] leading-[26px] font-bold text-ink">{lang.nativeLabel}</Text>
+              <Text className="text-label text-ink-soft">{lang.label}</Text>
             </View>
-            {selected ? <Ionicons name="checkmark-circle" size={32} color="#047857" /> : null}
+            {selected ? (
+              <View className="flex-row items-center">
+                <Ionicons name="checkmark-circle" size={22} color={palette.success} />
+                <Text className="text-label font-bold text-navy ml-1">{t('selected')}</Text>
+              </View>
+            ) : (
+              <Ionicons name="chevron-forward" size={20} color={palette.inkMute} />
+            )}
           </Pressable>
         );
       })}
@@ -40,7 +54,7 @@ export function LanguageOptions({ onSelected }: { onSelected?: (lang: Language) 
   );
 }
 
-/** Header button (PRD 3.2: prominent toggle in header) that opens the language list. */
+/** Compact masthead control: a globe and the language's own short mark. */
 export function LanguageToggle() {
   const { t } = useTranslation();
   const { language } = useLanguage();
@@ -53,29 +67,20 @@ export function LanguageToggle() {
         accessibilityRole="button"
         accessibilityLabel={`${t('selectLanguage')}: ${current.nativeLabel}`}
         onPress={() => setOpen(true)}
-        className="bg-blue-800 min-h-[48px] px-4 rounded-xl flex-row items-center border border-blue-300 active:opacity-80"
+        className="bg-white/10 min-h-[48px] px-3.5 rounded-control flex-row items-center border border-navy-line active:opacity-80"
       >
-        <Ionicons name="language" size={22} color="#FFFFFF" />
-        <Text className="text-white text-lg font-semibold ml-2">{current.nativeLabel}</Text>
+        <Ionicons name="globe-outline" size={20} color={palette.card} />
+        <Text className="text-white text-label font-bold ml-2">{current.short}</Text>
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable className="flex-1 bg-black/60 justify-center px-5" onPress={() => setOpen(false)}>
-          <Pressable className="bg-white rounded-card p-6" onPress={(e) => e.stopPropagation()}>
-            <Text accessibilityRole="header" className="text-2xl font-bold text-ink mb-4">
-              {t('selectLanguage')}
-            </Text>
-            <LanguageOptions onSelected={() => setOpen(false)} />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setOpen(false)}
-              className="min-h-[56px] mt-2 rounded-xl bg-gray-200 items-center justify-center active:opacity-80"
-            >
-              <Text className="text-lg font-semibold text-ink">{t('close')}</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <BottomSheet
+        visible={open}
+        title={t('selectLanguage')}
+        closeLabel={t('close')}
+        onClose={() => setOpen(false)}
+      >
+        <LanguageOptions onSelected={() => setOpen(false)} />
+      </BottomSheet>
     </>
   );
 }

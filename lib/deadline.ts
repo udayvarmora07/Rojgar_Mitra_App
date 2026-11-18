@@ -49,3 +49,22 @@ export function formatDate(
     return value;
   }
 }
+
+export type DateParts = { day: string; month: string; year: string; weekday: string };
+
+/** The tear-off stub on a job card needs the date split into its parts. */
+export function dateParts(value: string, language: Language): DateParts | null {
+  const date = parseDate(value);
+  if (!date) return null;
+  try {
+    const locale = localeFor(language);
+    return {
+      day: String(date.getDate()),
+      month: date.toLocaleDateString(locale, { month: 'short' }),
+      year: String(date.getFullYear()),
+      weekday: date.toLocaleDateString(locale, { weekday: 'short' }),
+    };
+  } catch {
+    return null;
+  }
+}

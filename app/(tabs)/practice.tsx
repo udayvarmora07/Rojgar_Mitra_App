@@ -3,12 +3,17 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
-import { Header } from '../../components/ui/Header';
-import { Card, SectionTitle } from '../../components/ui/Card';
+import { Masthead } from '../../components/ui/Masthead';
+import { LanguageToggle } from '../../components/ui/LanguagePicker';
+import { SectionHeading } from '../../components/ui/SectionHeading';
+import { Screen } from '../../components/ui/Screen';
 import { QUESTIONS_PER_TEST, TEST_CATEGORIES } from '../../constants/testCategories';
+import { palette } from '../../constants/theme';
 import { loadHistory, TestRecord } from '../../lib/testHistory';
 import { formatDate } from '../../lib/deadline';
 import { useLanguage } from '../../hooks/useLanguage';
+import { Mono } from '../../components/ui/Mono';
+import { EmptyState } from '../../components/ui/States';
 
 export default function PracticeScreen() {
   const router = useRouter();
@@ -27,14 +32,21 @@ export default function PracticeScreen() {
     }, [])
   );
 
-  const labelFor = (topic: string) => t(TEST_CATEGORIES.find((c) => c.topic === topic)?.labelKey ?? 'catGK');
+  const labelFor = (topic: string) =>
+    t(TEST_CATEGORIES.find((c) => c.topic === topic)?.labelKey ?? 'catGK');
 
   return (
-    <View role="main" className="flex-1 bg-surface">
-      <Header title={t('practiceTest')} subtitle={t('selectTopic')} />
+    <Screen>
+      <Masthead
+        title={t('practiceTest')}
+        subtitle={t('selectTopic')}
+        right={<LanguageToggle />}
+      />
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        {/* Optional timer (PRD 5.6) */}
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+      >
         <Pressable
           accessibilityRole="switch"
           accessibilityState={{ checked: timed }}
@@ -42,17 +54,23 @@ export default function PracticeScreen() {
           accessibilityLabel={t('timedTest')}
           accessibilityHint={t('timedTestHint')}
           onPress={() => setTimed((v) => !v)}
-          className="bg-white rounded-card border border-gray-200 p-4 mb-4 flex-row items-center min-h-[72px]"
+          className="bg-card rounded-card border border-rule p-4 mb-5 flex-row items-center min-h-[76px] active:opacity-80"
         >
-          <Ionicons name="timer-outline" size={32} color="#1E3A8A" />
-          <View className="flex-1 ml-3">
-            <Text className="text-lg font-bold text-ink">{t('timedTest')}</Text>
-            <Text className="text-lg text-gray-700">{t('timedTestHint')}</Text>
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
+          >
+            <Ionicons name="timer-outline" size={22} color={palette.navy} />
+          </View>
+          <View className="flex-1 ml-3 pr-2">
+            <Text className="text-body font-bold text-ink">{t('timedTest')}</Text>
+            <Text className="text-label text-ink-soft mt-0.5">{t('timedTestHint')}</Text>
           </View>
           <View
             importantForAccessibility="no-hide-descendants"
             accessibilityElementsHidden
-            className={`w-14 h-8 rounded-full p-1 justify-center ${timed ? 'bg-accent' : 'bg-gray-400'}`}
+            className={`w-12 h-7 rounded-full p-[2px] justify-center ${timed ? 'bg-success' : 'bg-rule-strong'}`}
           >
             <View className={`w-6 h-6 rounded-full bg-white ${timed ? 'self-end' : 'self-start'}`} />
           </View>
@@ -71,32 +89,43 @@ export default function PracticeScreen() {
                   params: { category: category.topic, timed: timed ? '1' : '0' },
                 })
               }
-              className="w-[48%] bg-white rounded-card p-5 mb-4 border border-gray-200 active:opacity-80"
+              className="w-[48.5%] bg-card rounded-card p-4 mb-3 border border-rule min-h-[150px] justify-between active:opacity-80"
             >
-              <View
-                className="w-16 h-16 rounded-full items-center justify-center mb-3"
-                style={{ backgroundColor: `${category.color}1A` }}
-              >
-                <Ionicons name={category.icon as keyof typeof Ionicons.glyphMap} size={34} color={category.color} />
+              <View className="flex-row items-start justify-between">
+                <View
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  className="w-10 h-10 rounded-control bg-navy-tint border border-navy-line items-center justify-center"
+                >
+                  <Ionicons
+                    name={category.icon as keyof typeof Ionicons.glyphMap}
+                    size={22}
+                    color={palette.navy}
+                  />
+                </View>
+                <Mono className="text-[11px] font-bold text-ink-mute">
+                  {QUESTIONS_PER_TEST} Q
+                </Mono>
               </View>
-              <Text className="text-xl font-bold text-ink">{t(category.labelKey)}</Text>
-              <Text className="text-lg text-gray-700 mt-1">{t('questionCount', { count: QUESTIONS_PER_TEST })}</Text>
-              <View className="flex-row items-center mt-3">
-                <Ionicons name="play-circle" size={24} color={category.color} />
-                <Text className="ml-2 text-lg font-bold" style={{ color: category.color }}>
-                  {t('start')}
+              <View>
+                <Text className="text-body leading-reading font-bold text-ink mt-3">
+                  {t(category.labelKey)}
+                </Text>
+                <Text className="text-label text-ink-soft mt-0.5">
+                  {t('questionCount', { count: QUESTIONS_PER_TEST })}
                 </Text>
               </View>
             </Pressable>
           ))}
         </View>
 
-        <Card>
-          <SectionTitle>{t('history')}</SectionTitle>
-          {history.length === 0 ? (
-            <Text className="text-lg text-gray-700">{t('noHistory')}</Text>
-          ) : (
-            history.slice(0, 5).map((record) => {
+        <SectionHeading title={t('history')} count={history.length} />
+
+        {history.length === 0 ? (
+          <EmptyState icon="ribbon-outline" title={t('noHistory')} />
+        ) : (
+          <View className="bg-card border border-rule rounded-card overflow-hidden">
+            {history.slice(0, 5).map((record, index) => {
               const percent = record.total ? Math.round((record.score / record.total) * 100) : 0;
               const good = percent >= 60;
               return (
@@ -104,24 +133,36 @@ export default function PracticeScreen() {
                   key={record.id}
                   accessible
                   accessibilityLabel={`${labelFor(record.topic)}: ${record.score} / ${record.total}`}
-                  className="flex-row items-center justify-between py-3 border-b border-gray-100"
+                  className={`px-4 py-3 flex-row items-center ${index > 0 ? 'border-t border-rule' : ''}`}
                 >
-                  <View className="flex-1 pr-2">
-                    <Text className="text-lg font-semibold text-ink">{labelFor(record.topic)}</Text>
-                    <View className="flex-row items-center">
-                      <Text className="text-lg text-gray-700">{formatDate(record.takenAt, language)}</Text>
-                      {record.timed ? <Ionicons name="timer-outline" size={18} color="#4B5563" style={{ marginLeft: 6 }} /> : null}
+                  <View className="flex-1 pr-3">
+                    <Text className="text-body font-bold text-ink">{labelFor(record.topic)}</Text>
+                    <View className="flex-row items-center mt-0.5">
+                      <Text className="text-label text-ink-soft">
+                        {formatDate(record.takenAt, language)}
+                      </Text>
+                      {record.timed ? (
+                        <Ionicons name="timer-outline" size={16} color={palette.inkMute} style={{ marginLeft: 6 }} />
+                      ) : null}
                     </View>
                   </View>
-                  <Text className={`text-xl font-bold ${good ? 'text-accent' : 'text-alert'}`}>
-                    {record.score}/{record.total}
-                  </Text>
+                  <View className="items-end w-[86px]">
+                    <Mono className={`text-title font-bold ${good ? 'text-success' : 'text-stamp'}`}>
+                      {record.score}/{record.total}
+                    </Mono>
+                    <View className="h-1 w-full bg-rule rounded-full mt-1 overflow-hidden">
+                      <View
+                        className={`h-1 rounded-full ${good ? 'bg-success' : 'bg-stamp'}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </View>
+                  </View>
                 </View>
               );
-            })
-          )}
-        </Card>
+            })}
+          </View>
+        )}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
