@@ -11,13 +11,23 @@ appId: com.rojgarmitra.app
     visible: "Rojgar Mitra"
     timeout: 60000
 - assertVisible: "What do you want to do?"
+# The category board pushes "Latest Jobs" below the fold on a phone, so scroll to it before
+# asserting. assertVisible only sees elements inside the viewport.
+- scrollUntilVisible:
+    element:
+      text: "Latest Jobs"
+    direction: DOWN
+    timeout: 30000
 - assertVisible: "Latest Jobs"
 # Live data: at least one job card from the scraped listing must render, not the empty state.
 # Maestro matches the whole text node exactly, and the card renders "Last Date: 18 Nov 2026"
 # as one node, so this needs a regex rather than the bare prefix.
-- extendedWaitUntil:
-    visible: ".*Last Date.*"
+- scrollUntilVisible:
+    element:
+      text: ".*Last Date.*"
+    direction: DOWN
     timeout: 30000
+- assertVisible: ".*Last Date.*"
 - tapOn: "Jobs"
 - assertVisible: "All Jobs"
 - tapOn: "Practice"
