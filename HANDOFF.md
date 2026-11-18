@@ -235,6 +235,46 @@ advertised)`.
 
 ---
 
+### Resume prompt for a fresh session
+
+> Read this file (§0 is the latest), then `PRODUCT.md`, `DESIGN.md` and `AGENTS.md`. All gates
+> are green (typecheck, lint, Jest 16 suites / 146 tests, Rust 34, Python 14, web E2E, native
+> E2E, and CI run 44404866302 with all five jobs). Run:
+>
+> ```bash
+> cd /home/uday-varmora/Rojgar_Mitra_App
+> export SUPABASE_URL="$(grep '^EXPO_PUBLIC_SUPABASE_URL=' .env | cut -d= -f2)"
+> export SUPABASE_ANON_KEY="$(grep '^EXPO_PUBLIC_SUPABASE_ANON_KEY=' .env | cut -d= -f2)"
+> npm run typecheck && npm run lint && NODE_ENV=test npx jest
+> bash scripts/e2e-web.sh && bash scripts/a11y-audit.sh
+> ```
+>
+> For native work the machine now has everything: boot the AVD with
+> `~/Android/sdk/emulator/emulator -avd rm_api34 -no-snapshot -no-audio -no-boot-anim -gpu
+> swiftshader_indirect -partition-size 3072`, build the APK with
+> `cd android && ./gradlew assembleRelease --no-daemon` **(needs ~5 GB free; clear
+> `android/app/build` and `~/.cache/google-chrome/*/Cache` first)**, install it with `adb
+> install -r`, and drive it with `~/.maestro/bin/maestro test e2e/android/smoke.yaml`.
+>
+> The highest-value remaining work is data coverage, not UI: 46% of jobs have eligibility and
+> 79% have pay, and the rest needs the official PDF parser. `documents_required` has 227 rows
+> across 38 jobs for the same reason. Touch UI only through `design/tokens.json` and
+> `components/ui/`.
+
+### What this pass changed, in one line each
+
+| Area | Change |
+|---|---|
+| Data | Scrapers now write salary, `job_details` and per-job `documents_required`; all three were 0 before |
+| Guide | `/guide` transcribes the OJAS order and marks the "registration is not an application" trap |
+| Tracking | `/applications` plus a tracker on job detail, with the confirmation number and a link out after expiry |
+| Home | "N new notices since your last visit" |
+| Eligibility | Each question now shows the notice's own age limit and qualification |
+| A11y | Review verdict and the guide's scroll region both fixed to real rules |
+| Native | Emulator, AVD, Maestro and a passing smoke flow on this machine |
+
+---
+
 ## 0.0 Complete UI redesign (2026-11-18)
 
 The whole frontend was replaced, not polished. The previous system was consistent but read as
