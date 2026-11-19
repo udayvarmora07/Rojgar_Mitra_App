@@ -7,6 +7,10 @@ import { useLanguage } from '../../hooks/useLanguage';
 import { curve, palette } from '../../constants/theme';
 import { DateStub } from './DateStub';
 import { Stamp } from '../ui/Stamp';
+import {
+  applyActionCopy,
+  type ApplyDestinationKind,
+} from '../../lib/officialLink';
 
 /**
  * One advertisement, one notice block.
@@ -25,11 +29,14 @@ export function JobCard({
   job,
   onPress,
   onApply,
+  applyKind = 'summary',
   applied = false,
 }: {
   job: Job;
   onPress: () => void;
   onApply?: () => void;
+  /** What the apply target is, so the strip can name it honestly. */
+  applyKind?: ApplyDestinationKind;
   /** The reader marked this notice as submitted. Shown as a stamp, never colour alone. */
   applied?: boolean;
 }) {
@@ -37,6 +44,7 @@ export function JobCard({
   const { language } = useLanguage();
   const status = deadlineStatus(job.deadline);
   const left = daysLeft(job.deadline);
+  const applyCopy = applyActionCopy(applyKind);
 
   const meta = [
     job.vacancies != null ? t('vacancyCount', { count: job.vacancies }) : null,
@@ -120,14 +128,14 @@ export function JobCard({
       {onApply && status !== 'expired' ? (
         <Pressable
           accessibilityRole="link"
-          accessibilityLabel={`${t('applyOnline')}: ${job.title}`}
-          accessibilityHint={t('applyHint')}
+          accessibilityLabel={`${t(applyCopy.label)}: ${job.title}`}
+          accessibilityHint={t(applyCopy.hint)}
           onPress={onApply}
           className="min-h-[52px] border-t border-rule px-4 flex-row items-center active:bg-paper"
         >
           <Ionicons name="open-outline" size={20} color={palette.navy} />
           <Text className="flex-1 text-label font-bold text-navy ml-2" numberOfLines={1}>
-            {t('applyOnline')}
+            {t(applyCopy.label)}
           </Text>
           <Ionicons name="arrow-forward" size={18} color={palette.navy} />
         </Pressable>

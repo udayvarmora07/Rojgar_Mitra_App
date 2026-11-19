@@ -9,66 +9,97 @@ component record for the current visual system.
 
 ---
 
-## 0. Latest: official PDF enrichment and real coverage (2026-11-19)
+## 0. Latest: official destinations, OCR, and 100% eligibility coverage (2026-11-19)
 
-`job_details` covered 40 of 87 live notices (46%) and pay 69 (79%). The article summaries were
-exhausted; the missing qualification or age was in the linked official ads. This pass adds a
-Rust PDF pass, extracts with Poppler's `pdftotext -layout`, and backfills the hosted project.
+The two open trust/data items from the previous pass are closed. The apply action now names and
+opens the real destination, and every live notice carries a usable qualification.
 
-**What changed**
-- `scraper-rs/src/pdf.rs` ranks notification links (root-relative GPSC `Important Links` are now
-  resolved), downloads with a 25 MB cap under the existing robots/spacing rules, extracts text
-  with Poppler, and parses both GPSC's `[3]` section and generic age/pay/qualification statements.
-  Placeholders such as `As Per the Advertisement` are rejected.
-- `--backfill-pdfs` reads live notices that still miss a fact, tries up to two linked PDFs, and
-  writes only when a numeric age and a valid qualification are both present. `db.rs` gained
-  `live_jobs_for_backfill` and a salary PATCH that only fills a null.
-- `parse.rs`: salary labels now include `PayScale`, `Stipend`, `Monthly Stipend`, `Remuneration`,
-  `Honorarium` and `Fellowship`; the age parser falls back to an intro `AGE LIMIT 25 - 58 Years`;
-  a placeholder qualification is no longer stored.
-- `.github/workflows/pdf-enrichment.yml` runs monthly and on manual dispatch (dry-run by default
-  manually) and installs `poppler-utils`. `ci-cd.yml` gained a Rust test/clippy job.
-- The hosted project was backfilled from a validated set after backing up every affected row:
-  14 salary fills and 15 eligibility rows.
+### Official destination per notice
 
-**Measured result**
+- **Migration 009** (`supabase/migrations/009_official_link_optional_age.sql`): `jobs.official_link`
+  with an `http(s)` check, and `job_details.age_limit` is now nullable. A project post with no age
+  limit stores its qualification instead of a placeholder sentence.
+- **Rust** `parse::freejobalert_official_link` reads the article's `Apply Online`,
+  `Official Website` or `Official Notification PDF` link, resolves `&amp;`-encoded hrefs, and
+  rejects FreeJobAlert, app-store, social and generic distractor links. It ranks an application
+  portal above a home page and a notification PDF below both.
+- `--backfill-pdfs` became the enrichment pass: it fills missing pay, eligibility and official
+  links, and repairs a row that holds a date in the age cell or a document fragment in the
+  qualification cell. `db.rs` gained `update_official_link` and `update_job_details`, both
+  null/field-scoped so a truthful value is never blanked.
+- **App** `lib/officialLink.ts` returns `{ url, official, kind }`, where `kind` is
+  `officialSite`, `applicationForm`, `notificationPdf` or `summary`. The labels are
+  `Apply on Official Website`, `Open Application Form`, `Open Official Notification` and
+  `Read the Full Notice`; a closed notice uses `closedNoticeCopy` instead of an apply invitation.
+  The list card, sticky bar, share text and archived applications all use the same helper, so
+  they cannot disagree.
+- **Data**: 84 of 95 live rows have a stored link; the other 11 are OJAS/GPSC source pages that
+  are already the official page. No FreeJobAlert or app-store URL is stored as official.
+
+### Eligibility coverage
+
+- **Article parsing** now reads visible prose only (`script`/`style`/`noscript` removed), tries
+  every matching heading rather than only the top-scoring one, falls back to the `Quick Summary`
+  block (`QUALIFICATION CA LAST DATE …`), and reads a qualification from a table header column.
+  A date in an `Age Limit` cell can no longer become an age.
+- **Validation** was tightened after reviewing all stored rows: short acronyms are case-sensitive
+  (`iti` used to match "auditing", `be` used to match the verb), JSON-LD `acceptedAnswer`
+  fragments are rejected, and advocate/Bar Council enrolment, `CA`, `M.F.Sc.` and similar
+  qualifications are accepted.
+- **Gujarati-aware**: `pdf.rs` accepts a Gujarati qualification statement and parses
+  `વય મર્યાદા` age ranges with Gujarati digits normalised to ASCII. `parse.rs` and `pdf.rs` use
+  the same visible-text extractor, so a corruption in one path cannot leak script text in the
+  other.
+- **OCR**: a PDF with no usable text layer is rendered with `pdftoppm -gray -r 300` and read
+  with Tesseract (`guj+eng`, falling back to `eng`). The pass also OCRs a PDF whose text layer
+  produced no fact or looks garbled — the legacy-font case that `pdftotext` alone cannot detect.
+  The monthly workflow installs `tesseract-ocr`, `tesseract-ocr-eng` and `tesseract-ocr-guj`.
+  Research notes: `legacylipi` and `pdf-cmap-fixer` were evaluated for legacy-font PDFs, but
+  both need a Python/CMap repair step per document; Tesseract is the durable fallback for the
+  Rust pipeline and also covers scanned pages. Tesseract's own guidance (grayscale, 300 dpi,
+  deskew) informed the render settings.
+- **Official page facts**: OJAS/GPSC rows that are already official pages are read from the page
+  body (`Age 20 To 35 Years`, `Any Graduate`), not only from FreeJobAlert articles.
+- **robots.txt is still honoured**. Google Drive's `usercontent` downloads and TSU PDFs are
+  skipped; the article or page facts are used instead.
+
+### Measured result (hosted project, 95 live notices)
 
 | Fact | Before | After |
 |---|---:|---:|
-| Eligibility rows | 40/87 (46%) | **55/87 (63%)** |
-| Numeric age + usable qualification | 35/87 (40%) | **50/87 (57%)** |
-| Pay | 69/87 (79%) | **83/87 (95%)** |
+| Eligibility row | 60 (63%) | **95 (100%)** |
+| Usable qualification | 53 (56%) | **95 (100%)** |
+| Numeric age | 53 (56%) | **63 (66%)** |
+| Official destination | 0 | **95 (100%)** |
+| Pay | 90 (95%) | 90 (95%) |
 
-The 15 rows are six GPSC ads (age, pay and qualification), Surveyor, both Food Safety Officer
-notices, Deputy Registrar, Resident Medical Doctor, Senior Trainer Consultant, Warden, Young
-Professional-I and the Sardar Patel fellowship. Eleven of those notices also gained pay, plus
-Apprentice, Gujarat Subordinate Service and the Graduate/Technician apprentices (14 fills).
+The 32 notices without a numeric age are correct gaps: project/contract/deputation posts whose
+notice states no numeric limit (seven carry a truthful note such as `Varies by post`), plus a
+few whose age exists only in a robots-excluded or TLS-broken PDF. Nothing was inferred from
+silence.
 
-The daily scraper has since added eight notices. At the time of writing the live project has
-60/95 eligibility rows (63%), 53/95 with a numeric age and usable qualification (56%) and
-90/95 pay (95%) — the same ratios, because new rows come through the same article path.
+### Verified in this session
 
-**Verified**
-- Rust: **47 tests**, `cargo clippy --all-targets -- -D warnings` clean.
-- `--backfill-pdfs --dry-run` against the hosted project completed; it scanned the 32 remaining
-  articles, correctly skipped robots-disallowed/scanned PDFs, and wrote nothing (the set was
-  already filled). The durable command is the monthly workflow, not a one-off script.
-- Hosted rows re-read after the write: every one of the 14 salaries and 15 detail rows matches
-  the validated set; live counts are 55 and 83.
-- Live app: the GPSC Executive Engineer shows `Rs.67700-208700/-`, `Maximum 35 years`, and the
-  full civil-engineering text behind `Show full text`; Food Safety Officer shows `18 to 37 years`
-  and the Food Technology qualification. Axe: **0 violations** on both detail screens.
-- App gates unchanged: typecheck, lint, Jest 25/197.
-- CI run `44482843901` on `4002829`: **all six jobs green**, including the new Rust scraper
-  tests (54 s), live gates (2m2s), build web and the Android E2E (18m34s).
+| Gate | Command | Result |
+|---|---|---|
+| Rust | `cargo test --locked` | **67 tests** |
+| Rust lint | `cargo clippy --locked --all-targets -- -D warnings` | clean |
+| App types | `npm run typecheck` | exit 0 |
+| App lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **26 suites, 209 tests** |
+| Web E2E (hosted) | `bash scripts/e2e-web.sh` | **all checks pass**, including the destination label, study material, guide, applications, reminders, documents |
+| Four-tab axe | `bash scripts/a11y-audit.sh` | **0 critical, 0 serious** on Home / Jobs / Practice / Settings |
+| Migration | `supabase db query --remote=… -f 009…` | applied; `official_link` and nullable `age_limit` present |
+| Hosted rows | PostgREST re-read | 95/95 rows, 95/95 usable qualifications, 0 JSON-LD fragments, 63 numeric ages |
 
-**Still open**
-- The sticky CTA still says `Apply Now - Official Website` but opens the FreeJobAlert article, not
-  the official portal. Storing the official notification URL per notice and retitling the action
-  is the next trust fix.
-- The 32 remaining notices need OCR (scanned PDFs) or a Gujarati-aware extractor; project posts
-  with no age limit are correctly left empty. The one-off Python pass downloaded TSU PDFs that
-  their `robots.txt` disallows; the durable Rust pass honours robots and will not repeat that.
+### Still open
+
+- 32 notices have no numeric age; the notice genuinely does not state one except for the
+  robots/TLS cases noted above. Do not fabricate a limit.
+- `cmfri.org.in` serves an incomplete TLS chain; its article qualification is used and its PDF
+  is unreadable without weakening certificate verification.
+- OCR is a deployment dependency: without `tesseract-ocr-guj` a scanned Gujarati notice is left
+  open and the run reports the missing binary. The monthly workflow installs it.
 
 ---
 
@@ -603,9 +634,8 @@ advertised)`.
 ### Resume prompt for a fresh session
 
 > Read this file (§0 is the latest), then `PRODUCT.md`, `DESIGN.md`, `SECURITY.md` and
-> `AGENTS.md`. All gates are green (typecheck, lint, Jest 25 suites / 197 tests, Rust 47,
-> expo-doctor 18/18, web E2E incl. reminders, four-tab axe, and the CI run recorded in §0.6
-> with all six jobs, including Rust scraper tests). Run:
+> `AGENTS.md`. All gates are green (typecheck, lint, Jest 26 suites / 209 tests, Rust 67,
+> web E2E and four-tab axe). Run:
 >
 > ```bash
 > cd /home/uday-varmora/Rojgar_Mitra_App
@@ -625,13 +655,13 @@ advertised)`.
 > install -r`, and drive it with `~/.maestro/bin/maestro test e2e/android/smoke.yaml`.
 >
 > The highest-value remaining product work is a "jobs I qualify for" view. Coverage is now
-> **60/95 eligibility rows (63%; 53 with a numeric age and usable qualification)** and
-> **90/95 pay (95%)** (the backfill snapshot was 55/87 and 83/87); the remaining notices need
-> OCR for scanned PDFs or a Gujarati-aware extractor. `documents_required` has 227 rows across
-> 38 jobs for the same reason. Run the PDF pass with
-> `cd scraper-rs && cargo run --release -- --backfill-pdfs --dry-run` (Poppler's `pdftotext`
-> required; the monthly workflow writes). Touch UI only through `design/tokens.json` and
-> `components/ui/`.
+> **95/95 eligibility rows and usable qualifications (100%)**, **63/95 numeric ages (66%)**,
+> **90/95 pay (95%)** and **95/95 official destinations** (84 stored links plus 11 official
+> OJAS/GPSC source pages). The 32 notices without a numeric age are project/deputation posts
+> that state none. Run the enrichment pass with
+> `cd scraper-rs && cargo run --release -- --backfill-pdfs --dry-run` (needs Poppler; scanned
+> and Gujarati notices need `tesseract-ocr` + `tesseract-ocr-guj`; the monthly workflow writes).
+> Touch UI only through `design/tokens.json` and `components/ui/`.
 
 ### What this pass changed, in one line each
 

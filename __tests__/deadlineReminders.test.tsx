@@ -149,6 +149,7 @@ describe('DeadlineReminderPanel', () => {
     deadline: daysFromNow(10),
     salary: null,
     source_link: null,
+    official_link: null,
     vacancies: null,
     qualification: 'Graduate',
     advertisement_no: null,

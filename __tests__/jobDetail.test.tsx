@@ -55,6 +55,7 @@ const job = {
   deadline: "2099-01-01",
   salary: null,
   source_link: null,
+  official_link: null,
   vacancies: null,
   qualification: "Graduate",
   advertisement_no: null,
@@ -147,6 +148,7 @@ describe("Job detail screen", () => {
     mockGetJobById.mockResolvedValue({
       ...job,
       source_link: "https://www.freejobalert.com/gujarat-government-jobs/",
+      official_link: null,
     });
     render(<JobDetailScreen />);
 
@@ -251,17 +253,87 @@ describe("Job detail screen", () => {
       ...job,
       deadline: "2020-01-01",
       source_link: "https://example.com/notice",
+      official_link: null,
     });
     render(<JobDetailScreen />);
 
     await waitFor(() => expect(screen.getByText("Clerk")).toBeTruthy());
     expect(screen.getByText(/This notice has closed/)).toBeTruthy();
     expect(
-      screen.queryByRole("button", { name: "Apply Now - Official Website" }),
+      screen.queryByRole("button", { name: "Apply on Official Website" }),
     ).toBeNull();
     // The official page stays reachable: it is where a call letter or corrigendum appears.
     expect(
       screen.getByRole("button", { name: "Open the official notice" }),
     ).toBeTruthy();
+  });
+
+  it("opens the official portal when the notice has one, and labels it honestly", async () => {
+    mockGetJobById.mockResolvedValue({
+      ...job,
+      source_link: "https://www.freejobalert.com/articles/clerk-123",
+      official_link: "https://ojas.gujarat.gov.in/AdvtDetails.aspx?sid=clerk",
+    });
+    render(<JobDetailScreen />);
+
+    await waitFor(() => expect(screen.getByText("Clerk")).toBeTruthy());
+    expect(
+      screen.getByRole("button", { name: "Apply on Official Website" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Official site: ojas.gujarat.gov.in")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Read the Full Notice" }),
+    ).toBeNull();
+  });
+
+  it("does not call a third-party summary an official website", async () => {
+    mockGetJobById.mockResolvedValue({
+      ...job,
+      source_link: "https://www.freejobalert.com/articles/clerk-123",
+      official_link: null,
+    });
+    render(<JobDetailScreen />);
+
+    await waitFor(() => expect(screen.getByText("Clerk")).toBeTruthy());
+    expect(
+      screen.getByRole("button", { name: "Read the Full Notice" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Apply on Official Website" }),
+    ).toBeNull();
+  });
+
+  it("names an official notification PDF instead of calling it an application page", async () => {
+    mockGetJobById.mockResolvedValue({
+      ...job,
+      source_link: "https://www.freejobalert.com/articles/baou-1",
+      official_link: "https://baou.edu.in/assets/pdf/Envlope%2002-2026.pdf",
+    });
+    render(<JobDetailScreen />);
+
+    await waitFor(() => expect(screen.getByText("Clerk")).toBeTruthy());
+    expect(
+      screen.getByRole("button", { name: "Open Official Notification" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Apply on Official Website" }),
+    ).toBeNull();
+  });
+
+  it("names an application form instead of calling it a website", async () => {
+    mockGetJobById.mockResolvedValue({
+      ...job,
+      source_link: "https://www.freejobalert.com/articles/niper-1",
+      official_link: "https://forms.gle/2LL2aEJ4Db4psyL3A",
+    });
+    render(<JobDetailScreen />);
+
+    await waitFor(() => expect(screen.getByText("Clerk")).toBeTruthy());
+    expect(
+      screen.getByRole("button", { name: "Open Application Form" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Apply on Official Website" }),
+    ).toBeNull();
   });
 });

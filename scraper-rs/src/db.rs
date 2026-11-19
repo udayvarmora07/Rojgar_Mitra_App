@@ -165,22 +165,35 @@ pub struct BackfillJob {
     pub source_link: String,
     pub salary: Option<String>,
     pub qualification: Option<String>,
+    pub official_link: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct DetailJobIdRow {
     job_id: String,
+    age_limit: Option<String>,
+    required_qualifications: String,
 }
 
-/// Reads live jobs and the set that already has an eligibility row.
+/// What a job's eligibility row currently says. Used to repair a row that was filled with a
+/// date in the age cell or a document-checklist fragment in the qualification cell.
+#[derive(Debug, Clone, Deserialize)]
+pub struct StoredDetail {
+    pub age_limit: Option<String>,
+    pub required_qualifications: String,
+}
+
+/// Reads live jobs and their current eligibility rows.
 ///
-/// The monthly PDF pass only touches a job when one of the two facts is missing; a job whose
+/// The monthly pass touches a job when one of its facts is missing or unusable; a job whose
 /// article already supplied both is not downloaded again.
-pub fn live_jobs_for_backfill(today: &str) -> Result<(Vec<BackfillJob>, HashSet<String>), String> {
+pub fn live_jobs_for_backfill(
+    today: &str,
+) -> Result<(Vec<BackfillJob>, std::collections::HashMap<String, StoredDetail>), String> {
     let (url, key) = credentials()?;
     let agent = agent();
     let jobs_url = format!(
-        "{url}/rest/v1/jobs?select=id,title,source_link,salary,qualification&deadline=gte.{today}&order=deadline.asc"
+        "{url}/rest/v1/jobs?select=id,title,source_link,salary,qualification,official_link&deadline=gte.{today}&order=deadline.asc"
     );
     let mut response = agent
         .get(&jobs_url)
@@ -193,7 +206,7 @@ pub fn live_jobs_for_backfill(today: &str) -> Result<(Vec<BackfillJob>, HashSet<
         .read_json()
         .map_err(|err| format!("could not parse jobs: {err}"))?;
 
-    let details_url = format!("{url}/rest/v1/job_details?select=job_id");
+    let details_url = format!("{url}/rest/v1/job_details?select=job_id,age_limit,required_qualifications");
     let mut response = agent
         .get(&details_url)
         .header("apikey", &key)
@@ -204,7 +217,19 @@ pub fn live_jobs_for_backfill(today: &str) -> Result<(Vec<BackfillJob>, HashSet<
         .body_mut()
         .read_json()
         .map_err(|err| format!("could not parse job_details: {err}"))?;
-    Ok((jobs, rows.into_iter().map(|row| row.job_id).collect()))
+    let details = rows
+        .into_iter()
+        .map(|row| {
+            (
+                row.job_id,
+                StoredDetail {
+                    age_limit: row.age_limit,
+                    required_qualifications: row.required_qualifications,
+                },
+            )
+        })
+        .collect();
+    Ok((jobs, details))
 }
 
 /// Fills a missing salary without overwriting a value the article already supplied.
@@ -227,13 +252,37 @@ pub fn update_salary(source_link: &str, salary: &str) -> Result<(), String> {
         .map_err(|err| format!("salary update failed for {source_link}: {err}"))
 }
 
+/// Stores the official destination for a notice, only when the column is still empty.
+///
+/// The official URL is the trust fix for the apply button: the article link is a summary, and
+/// it must never be labelled "Official Website". A null-only patch means a later run can fill a
+/// gap without replacing a link an earlier run already validated.
+pub fn update_official_link(source_link: &str, official_link: &str) -> Result<(), String> {
+    let (url, key) = credentials()?;
+    let agent = agent();
+    let patch = format!(
+        "{url}/rest/v1/jobs?source_link=eq.{}&official_link=is.null",
+        encode_query(source_link)
+    );
+    let body = serde_json::json!({ "official_link": official_link }).to_string();
+    agent
+        .patch(&patch)
+        .header("apikey", &key)
+        .header("Authorization", &format!("Bearer {key}"))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .send(body.as_bytes())
+        .map(|_| ())
+        .map_err(|err| format!("official link update failed for {source_link}: {err}"))
+}
+
 /// One eligibility record per job, written to `public.job_details` after the job rows exist.
 ///
-/// `age_limit` and `required_qualifications` are NOT NULL in the schema, so a record is only
-/// sent when both are present. `application_fees` is optional.
+/// `age_limit` is optional: project and deputation posts often state no age, and a row that
+/// carries only the qualification is still usable. `required_qualifications` stays required.
 pub struct DetailRow {
     pub job_source_link: String,
-    pub age_limit: String,
+    pub age_limit: Option<String>,
     pub required_qualifications: String,
     pub application_fees: Option<String>,
 }
@@ -301,6 +350,43 @@ pub fn insert_job_details(details: &[DetailRow]) -> Result<usize, String> {
         }
     }
     Ok(written)
+}
+
+/// Replaces the fields of an existing eligibility row that were wrong or missing.
+///
+/// A row is never blanked: only the fields the caller passes are patched, so a truthful
+/// `Varies by post` age survives a pass that could not find a numeric limit.
+pub fn update_job_details(
+    job_id: &str,
+    age_limit: Option<&str>,
+    qualification: Option<&str>,
+) -> Result<(), String> {
+    let (url, key) = credentials()?;
+    let agent = agent();
+    let mut payload = serde_json::Map::new();
+    if let Some(age_limit) = age_limit {
+        payload.insert("age_limit".to_string(), serde_json::json!(age_limit));
+    }
+    if let Some(qualification) = qualification {
+        payload.insert(
+            "required_qualifications".to_string(),
+            serde_json::json!(qualification),
+        );
+    }
+    if payload.is_empty() {
+        return Ok(());
+    }
+    let patch = format!("{url}/rest/v1/job_details?job_id=eq.{job_id}");
+    let body = serde_json::Value::Object(payload).to_string();
+    agent
+        .patch(&patch)
+        .header("apikey", &key)
+        .header("Authorization", &format!("Bearer {key}"))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .send(body.as_bytes())
+        .map(|_| ())
+        .map_err(|err| format!("job_details update failed for {job_id}: {err}"))
 }
 
 /// One required document for a job, written to `public.documents_required`.

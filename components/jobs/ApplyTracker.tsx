@@ -58,6 +58,7 @@ export function ApplyTracker({ job }: { job: Job }) {
       // where the call letter will appear.
       title: job.title,
       sourceLink: job.source_link,
+      officialLink: job.official_link,
     });
     setRecord(map[job.id] ?? null);
     setEditing(false);

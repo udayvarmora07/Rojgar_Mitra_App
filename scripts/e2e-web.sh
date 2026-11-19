@@ -80,9 +80,31 @@ BASE="http://localhost:$PORT"
 
 check_text() {
   # Wait up to 20s for visible text, then assert it is present.
-  "${AB[@]}" wait --text "$1" --timeout 20000 >/dev/null 2>&1 \
-    || fail "expected text not shown: '$1' ($2)"
+  if ! "${AB[@]}" wait --text "$1" --timeout 20000 >/dev/null 2>&1; then
+    # A failure is almost always a wrong screen rather than a missing string; print what is
+    # on screen so the log explains itself.
+    "${AB[@]}" eval "document.body.innerText" 2>/dev/null | head -c 2000 >&2 || true
+    fail "expected text not shown: '$1' ($2)"
+  fi
   pass "$2"
+}
+
+# React Native Web renders ScrollView as an inner overflow container, so the browser's own
+# page scroll does nothing. This scrolls the first tall scrollable element it finds.
+scroll_content() {
+  "${AB[@]}" eval "
+    (() => {
+      const all = Array.from(document.querySelectorAll('*'));
+      const el = all.find((n) => {
+        const s = getComputedStyle(n);
+        return (s.overflowY === 'auto' || s.overflowY === 'scroll')
+          && n.scrollHeight > n.clientHeight + 40;
+      });
+      if (!el) return 'none';
+      el.scrollTop = Math.min(el.scrollTop + 700, el.scrollHeight);
+      return 'scrolled';
+    })();
+  " >/dev/null 2>&1 || true
 }
 
 click_tab() {
@@ -128,8 +150,16 @@ check_text "Last Date" "home shows live job cards from the database"
 # The shortcut must carry its filter into the jobs screen, not just navigate to it.
 "${AB[@]}" find text "Graduate" click >/dev/null 2>&1 || fail "education shortcut not tappable"
 check_text "Clear filters" "education shortcut opens a filtered jobs list"
-# PRD 5.2: Apply is reachable from the list, not only after opening a notice.
-check_text "Apply Now - Official Website" "jobs list offers Apply on the card"
+# PRD 5.2: the action is reachable from the list, and its label names the destination:
+# an official portal, an application form, a notification PDF, or the third-party summary.
+if "${AB[@]}" wait --text "Apply on Official Website" --timeout 10000 >/dev/null 2>&1 \
+  || "${AB[@]}" wait --text "Open Official Notification" --timeout 5000 >/dev/null 2>&1 \
+  || "${AB[@]}" wait --text "Open Application Form" --timeout 5000 >/dev/null 2>&1 \
+  || "${AB[@]}" wait --text "Read the Full Notice" --timeout 5000 >/dev/null 2>&1; then
+  pass "jobs list names the destination on the card"
+else
+  fail "jobs list has no apply or notice action"
+fi
 
 echo "==> Accessibility audit (home)"
 audit_page "home"
@@ -143,7 +173,9 @@ echo "==> Study material"
 check_text "Study material" "practice screen links to study material"
 "${AB[@]}" find text "Study material" click >/dev/null 2>&1 || fail "study material not tappable"
 check_text "Practice tests" "study material lists practice tests"
+scroll_content
 check_text "PDF documents" "study material lists official PDFs"
+scroll_content
 check_text "Official websites" "study material lists official links"
 "${AB[@]}" find text "Back" click >/dev/null 2>&1 || fail "study material has no back control"
 

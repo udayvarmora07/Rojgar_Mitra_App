@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Masthead } from '../components/ui/Masthead';
 import { LanguageToggle } from '../components/ui/LanguagePicker';
 import { openExternalLink } from '../lib/externalLink';
+import { closedNoticeCopy, destinationKind } from '../lib/officialLink';
 import { isSafeWebUrl } from '../lib/url';
 import { Screen } from '../components/ui/Screen';
 import { SectionHeading } from '../components/ui/SectionHeading';
@@ -123,7 +124,13 @@ export default function ApplicationsScreen() {
                       const job = byId.get(record.jobId);
                       // Prefer the recorded values: the live job may have been evicted.
                       const title = job?.title ?? record.title ?? record.jobId;
-                      const link = job?.source_link ?? record.sourceLink;
+                      const link =
+                        job?.official_link ??
+                        record.officialLink ??
+                        job?.source_link ??
+                        record.sourceLink;
+                      const kind = destinationKind(link);
+                      const copy = kind ? closedNoticeCopy(kind) : null;
                       return (
                         <View
                           key={record.jobId}
@@ -153,13 +160,13 @@ export default function ApplicationsScreen() {
                           {isSafeWebUrl(link) ? (
                             <Pressable
                               accessibilityRole="link"
-                              accessibilityLabel={`${t('openNotice')}: ${title}`}
+                              accessibilityLabel={`${t(copy?.label ?? 'openNotice')}: ${title}`}
                               onPress={() => openNotice(link)}
                               className="mt-2 min-h-[48px] flex-row items-center active:opacity-70"
                             >
                               <Ionicons name="open-outline" size={18} color={palette.navy} />
                               <Text className="text-label font-bold text-navy ml-2">
-                                {t('openNotice')}
+                                {t(copy?.label ?? 'openNotice')}
                               </Text>
                             </Pressable>
                           ) : null}

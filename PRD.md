@@ -175,9 +175,14 @@
 - Share this notice through the native share sheet (Web Share or a copied message on web),
   carrying only facts already shown on the notice
 - Action buttons:
-  - "Apply Now - Official Website" (external link) — only while the last date has not passed
-  - On a closed notice: a written closed state and "Open the official notice" instead, because
-    the official page may carry a corrigendum or call letter
+  - "Apply on Official Website" (the organisation's portal) — only while the last date has not
+    passed
+  - "Open Application Form" when the official destination is a form (for example a Google Form)
+  - "Open Official Notification" when the official destination is the notification PDF
+  - "Read the Full Notice" when the only stored link is a third-party summary; the label never
+    calls an aggregator an official website
+  - On a closed notice: a written closed state and an open/read action instead, because the
+    official page may carry a corrigendum or call letter
   - "Start Practice Test" (navigates to Practice tab)
   - "View Document Checklist"
 

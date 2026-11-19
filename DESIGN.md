@@ -190,10 +190,12 @@ Left date stub, then title (20px bold), department, one meta line (posts · qual
 salary), then a "Last Date" label and the status stamp. Chevron at the trailing edge. The
 notice block is one press target; no control is nested inside it.
 
-On the Jobs list the card closes with a ruled Apply strip: an open glyph, `Apply Now -
-Official Website`, and an arrow. It is a sibling press target below the notice, so a screen
-reader can reach it on iOS, and it is hidden for a closed notice. Home's preview cards keep
-the single target, because Home is for scanning and the list is for acting.
+On the Jobs list the card closes with a ruled action strip: an open glyph, a label that names
+the destination (`Apply on Official Website`, `Open Application Form`, `Open Official
+Notification`, or `Read the Full Notice` for the third-party summary), and an arrow. It is a
+sibling press target below the notice, so a screen reader can reach it on iOS, and it is hidden
+for a closed notice. Home's preview cards keep the single target, because Home is for scanning
+and the list is for acting.
 
 ### Category board
 One white card, not six floating cards: a two-column grid of education levels that have open

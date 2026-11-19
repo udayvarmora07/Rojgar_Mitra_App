@@ -9,6 +9,7 @@ const job = {
   deadline: '2099-01-01',
   salary: null,
   source_link: null,
+  official_link: null,
   vacancies: 2,
   qualification: 'Graduate',
   advertisement_no: null,

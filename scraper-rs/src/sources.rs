@@ -90,6 +90,7 @@ mod tests {
             qualification: None,
             advertisement_no: None,
             location: None,
+            official_link: None,
         }
     }
 

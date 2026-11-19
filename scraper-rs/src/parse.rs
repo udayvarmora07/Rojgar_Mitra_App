@@ -5,7 +5,9 @@
 //!   GPSC        `table` whose <th> row has "advt" and "date", cells in a fixed order
 //!   FreeJobAlert `table` whose <th> row has "last date" and "board", columns by header name
 
+use regex::Regex;
 use scraper::{ElementRef, Html, Selector};
+use url::Url;
 
 use crate::dates::parse_date;
 use crate::Job;
@@ -45,7 +47,7 @@ const ORGANISATIONS: &[(&str, &str)] = &[
 /// second layer (`&amp;rsquo;`), and the backfill that first populated `job_details` wrote
 /// the raw text. A reader must never see `Bachelor&rsquo;s` where the notice says
 /// "Bachelor's". Unknown names are left untouched rather than dropped.
-fn decode_entities(text: &str) -> String {
+pub(crate) fn decode_entities(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
 
@@ -181,6 +183,7 @@ pub fn ojas_home(html: &str, base: &str, today: &str) -> Vec<Job> {
             qualification: None,
             advertisement_no: None,
             location: None,
+            official_link: None,
         });
     }
     jobs
@@ -218,10 +221,27 @@ pub fn freejobalert_salary(html: &str) -> Option<String> {
 
 /// The age limit stated on a FreeJobAlert article, e.g. `18 to 38 years`.
 ///
-/// Some articles keep the age only in the intro sentence (`AGE LIMIT 25 - 58 Years`);
-/// [`crate::pdf::age_from_html`] is the fallback for those.
+/// Three shapes occur in the live pages: a labelled table row, a prose section under an
+/// `Age Limit` heading, and an intro sentence (`AGE LIMIT 25 - 58 Years`). Every candidate is
+/// passed through [`crate::pdf::numeric_age`], so a table cell that actually holds a date
+/// (`20 November 2026`) can never be published as an age.
 pub fn freejobalert_age_limit(html: &str) -> Option<String> {
-    freejobalert_field(html, &["age limit", "age"]).or_else(|| crate::pdf::age_from_html(html))
+    freejobalert_field(html, &["age limit", "age"])
+        .and_then(|value| crate::pdf::numeric_age(&value))
+        .or_else(|| {
+            quick_summary_field(html, "age limit").and_then(|value| crate::pdf::numeric_age(&value))
+        })
+        .or_else(|| quick_summary_field(html, "age").and_then(|value| crate::pdf::numeric_age(&value)))
+        .or_else(|| {
+            sections_by_heading(
+                html,
+                &[("age limit", 60), ("age criteria", 55), ("age", 30)],
+                400,
+            )
+            .into_iter()
+            .find_map(|value| crate::pdf::numeric_age(&value))
+        })
+        .or_else(|| crate::pdf::age_from_html(html))
 }
 
 /// The application fee stated on a FreeJobAlert article, e.g. `Rs. 100 for General`.
@@ -230,8 +250,319 @@ pub fn freejobalert_fee(html: &str) -> Option<String> {
 }
 
 /// The qualification stated on a FreeJobAlert article, used to fill `job_details`.
+///
+/// Articles carry it in four different shapes, all observed live:
+///   * a `Qualification | ...` table row,
+///   * a table whose header is `Essential Qualification` (the value is the column below it),
+///   * a heading such as `Essential Qualification`, `Educational Qualification – Mathematics`
+///     or a `Q4. What is the educational qualification…` FAQ entry followed by prose,
+///   * the `Quick Summary` block (`QUALIFICATION CA LAST DATE …`).
+///
+/// Every candidate is tried, not just the highest-scoring heading: a generic `Eligibility`
+/// section often talks about experience and professional receipts, while a later FAQ answer
+/// states the degree. Candidates covered by a hidden `<script type="application/ld+json">`
+/// block are never read, because that is where the malformed FAQ text came from.
 pub fn freejobalert_qualification(html: &str) -> Option<String> {
-    freejobalert_field(html, &["qualification", "educational qualification"])
+    let mut candidates = vec![
+        freejobalert_field(html, &["qualification", "educational qualification"]),
+        table_column(
+            html,
+            &["essential qualification", "educational qualification", "qualification"],
+            4,
+        ),
+        quick_summary_field(html, "qualification"),
+    ];
+    candidates.extend(
+        sections_by_heading(
+            html,
+            &[
+                ("essential qualification", 60),
+                ("educational qualification", 60),
+                ("qualification", 40),
+                ("eligibility criteria", 30),
+                ("who can attend", 25),
+                ("eligibility", 20),
+            ],
+            750,
+        )
+        .into_iter()
+        .map(Some),
+    );
+    candidates
+        .into_iter()
+        .flatten()
+        .find(|value| crate::pdf::valid_qualification(value))
+}
+
+/// The visible text of the page with `script`, `style` and `noscript` bodies removed.
+///
+/// `scraper` returns script text as ordinary text nodes, so a page's JSON-LD FAQ block would
+/// otherwise be read as prose. That is exactly how `"acceptedAnswer"` reached the database.
+pub(crate) fn visible_text(html: &str) -> String {
+    let document = Html::parse_document(html);
+    let mut out = String::new();
+    for node in document.root_element().descendants() {
+        let Some(text) = node.value().as_text() else {
+            continue;
+        };
+        let hidden = node.ancestors().any(|ancestor| {
+            ancestor.value().as_element().is_some_and(|element| {
+                matches!(element.name(), "script" | "style" | "noscript")
+            })
+        });
+        if !hidden {
+            out.push_str(text);
+            out.push(' ');
+        }
+    }
+    clean(&out)
+}
+
+/// Reads a field from the `Quick Summary` block, e.g. `QUALIFICATION CA LAST DATE 20-11-2026`.
+///
+/// The summary is not a table, so the row parser cannot see it. The value is bounded by the
+/// next known label, which keeps the capture from swallowing the rest of the page.
+fn quick_summary_field(html: &str, label: &str) -> Option<String> {
+    let text = visible_text(html);
+    let pattern = format!(
+        r"(?i)\b{}\b\s*[:\-]?\s*(.{{2,80}}?)\s+(?:company name|post name|qualification|age limit|age|pay|last date|vacancy|job location|application fee)\b",
+        regex::escape(label)
+    );
+    let re = Regex::new(&pattern).ok()?;
+    re.captures(&text)
+        .map(|caps| clean(&caps[1]))
+        .filter(|value| !value.is_empty())
+}
+
+/// Reads every heading body that matches `wanted`, best-scoring first.
+///
+/// A heading's body runs until the next `h2`/`h3`/`h4`, which is how FreeJobAlert separates
+/// `Essential Qualification`, `Pay`, `Application Fee` and the FAQ block. `relaxation` headings
+/// are pushed out of contention: an age-relaxation paragraph states the concession, not the
+/// base age limit.
+fn sections_by_heading(html: &str, wanted: &[(&str, i32)], max_chars: usize) -> Vec<String> {
+    let document = Html::parse_document(html);
+    let heading_sel = Selector::parse("h2, h3, h4").expect("static selector");
+    let mut found: Vec<(i32, usize, String)> = Vec::new();
+
+    for (order, heading) in document.select(&heading_sel).enumerate() {
+        let title = text_of(&heading).to_lowercase();
+        let score = wanted
+            .iter()
+            .filter(|(needle, _)| title.contains(needle))
+            .map(|(_, score)| *score)
+            .max()
+            .unwrap_or(0);
+        if score <= 0 || title.contains("relaxation") {
+            continue;
+        }
+
+        let mut body = String::new();
+        for sibling in heading
+            .parent()
+            .map(|parent| parent.children())
+            .into_iter()
+            .flatten()
+            .skip_while(|node| node.id() != heading.id())
+            .skip(1)
+        {
+            if let Some(element) = ElementRef::wrap(sibling) {
+                let name = element.value().name();
+                if matches!(name, "h2" | "h3" | "h4") {
+                    break;
+                }
+                // Hidden blocks are not prose; the JSON-LD FAQ answer used to leak from here.
+                if matches!(name, "script" | "style" | "noscript") {
+                    continue;
+                }
+                body.push(' ');
+                body.push_str(&element.text().collect::<Vec<_>>().join(" "));
+            } else if let Some(text) = sibling.value().as_text() {
+                body.push(' ');
+                body.push_str(text);
+            }
+            if body.chars().count() >= max_chars {
+                break;
+            }
+        }
+
+        let body = clean(&body).chars().take(max_chars).collect::<String>();
+        if body.chars().count() < 4 {
+            continue;
+        }
+        found.push((score, order, body));
+    }
+
+    found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+    found.into_iter().map(|(_, _, body)| body).collect()
+}
+
+/// Reads the cells of a table column whose header names a qualification.
+///
+/// Some articles (the CMFRI project post, for example) put one post per row with
+/// `Post | Essential Qualification | Desirable Qualification` as the header, so there is no
+/// label/value row to read.
+fn table_column(html: &str, headers: &[&str], max_rows: usize) -> Option<String> {
+    let document = Html::parse_document(html);
+    let table_sel = Selector::parse("table").expect("static selector");
+    let tr_sel = Selector::parse("tr").expect("static selector");
+    let th_sel = Selector::parse("th").expect("static selector");
+    let td_sel = Selector::parse("td").expect("static selector");
+
+    for table in document.select(&table_sel) {
+        let mut column: Option<usize> = None;
+        let mut values: Vec<String> = Vec::new();
+
+        for row in table.select(&tr_sel) {
+            let heads: Vec<String> = row.select(&th_sel).map(|cell| text_of(&cell)).collect();
+            if !heads.is_empty() && column.is_none() {
+                column = heads.iter().position(|head| {
+                    let head = head.to_lowercase();
+                    headers.iter().any(|wanted| head.contains(wanted))
+                });
+                continue;
+            }
+            let Some(index) = column else { continue };
+            let cells: Vec<String> = row.select(&td_sel).map(|cell| text_of(&cell)).collect();
+            if let Some(value) = cells.get(index) {
+                let value = clean(value);
+                if value.chars().count() > 4 {
+                    values.push(value);
+                }
+                if values.len() >= max_rows {
+                    break;
+                }
+            }
+        }
+
+        if !values.is_empty() {
+            return Some(values.join("; ").chars().take(750).collect());
+        }
+    }
+    None
+}
+
+/// The official destination for a notice: the application portal first, then the organisation's
+/// own site, then the notification document.
+///
+/// FreeJobAlert rows previously sent the reader to the article while the button claimed
+/// "Official Website". This reads the article's own `Official Website`, `Apply Online` or
+/// `Official Notification PDF` link, and refuses FreeJobAlert, app-store and social links, so
+/// the stored value is a destination the label can honestly promise.
+pub fn freejobalert_official_link(html: &str, base: &str) -> Option<String> {
+    const BLOCKED_HOST: &[&str] = &[
+        "freejobalert.com",
+        "play.google.com",
+        "facebook.com",
+        "twitter.com",
+        "x.com",
+        "whatsapp.com",
+        "wa.me",
+        "telegram.me",
+        "t.me",
+        "youtube.com",
+        "instagram.com",
+        "linkedin.com",
+        "pinterest.com",
+        "threads.net",
+    ];
+    const DISTRACTOR: &[&str] = &[
+        "latest notification",
+        "admit card",
+        "answer key",
+        "result",
+        "syllabus",
+        "time table",
+        "previous paper",
+        "exam pattern",
+        "hall ticket",
+        "merit list",
+        "cut off",
+        "question paper",
+    ];
+
+    let document = Html::parse_document(html);
+    let anchor_sel = Selector::parse("a[href]").expect("static selector");
+    let base_url = Url::parse(base).ok()?;
+    let official_re = Regex::new(r"(?i)official\s+(?:website|site)").expect("static regex");
+    let apply_re = Regex::new(r"(?i)\bapply\s+(?:online|here)\b").expect("static regex");
+    let notice_re = Regex::new(
+        r"(?i)official\s+notification|notification\s+pdf|download\s+notification|detailed\s+advertisement|advertisement\s+pdf",
+    )
+    .expect("static regex");
+    let mut best: Option<(String, i32)> = None;
+
+    for anchor in document.select(&anchor_sel) {
+        let Some(raw) = anchor.value().attr("href") else {
+            continue;
+        };
+        let Ok(url) = base_url.join(decode_entities(raw).trim()) else {
+            continue;
+        };
+        if !matches!(url.scheme(), "http" | "https") {
+            continue;
+        }
+        let host = url.host_str().unwrap_or("").to_lowercase();
+        if BLOCKED_HOST.iter().any(|blocked| host.ends_with(blocked)) {
+            continue;
+        }
+        let link = url.to_string();
+        let text = clean(&anchor.text().collect::<Vec<_>>().join(" ")).to_lowercase();
+
+        // A row label carries the meaning when the anchor itself says "Click here".
+        let mut context = text.clone();
+        let mut node = anchor.parent();
+        while let Some(current) = node {
+            if let Some(element) = ElementRef::wrap(current) {
+                if matches!(element.value().name(), "tr" | "li" | "p") {
+                    context = format!(
+                        "{text} {}",
+                        clean(&element.text().collect::<Vec<_>>().join(" ")).to_lowercase()
+                    );
+                    break;
+                }
+                if matches!(element.value().name(), "table" | "body") {
+                    break;
+                }
+            }
+            node = current.parent();
+        }
+        if DISTRACTOR.iter().any(|bad| context.contains(bad)) {
+            continue;
+        }
+
+        let mut score = 0i32;
+        if apply_re.is_match(&context) {
+            score += 36;
+        }
+        if official_re.is_match(&context) {
+            score += 34;
+        }
+        if notice_re.is_match(&context) {
+            score += 18;
+        }
+        if link
+            .to_lowercase()
+            .split('?')
+            .next()
+            .is_some_and(|path| path.ends_with(".pdf"))
+        {
+            score += 4;
+        }
+        if host.ends_with(".gov.in") || host.ends_with(".nic.in") {
+            score += 5;
+        }
+        if score <= 0 {
+            continue;
+        }
+
+        let better = best.as_ref().map_or(true, |(_, best_score)| score > *best_score);
+        if better {
+            best = Some((link, score));
+        }
+    }
+
+    best.map(|(link, _)| link)
 }
 
 /// The per-job "Documents Required" list from a FreeJobAlert article.
@@ -372,6 +703,7 @@ pub fn gpsc_open(html: &str, base: &str, today: &str) -> Vec<Job> {
                 qualification: None,
                 advertisement_no: if advt_no.is_empty() { None } else { Some(advt_no.clone()) },
                 location: None,
+                official_link: None,
             });
         }
     }
@@ -451,6 +783,7 @@ pub fn freejobalert_gujarat(html: &str, base: &str, today: &str) -> Vec<Job> {
                 qualification: placeholder_to_none(cell(idx_qual)),
                 advertisement_no: placeholder_to_none(cell(idx_advt)),
                 location: None,
+                official_link: None,
             });
         }
     }
@@ -761,5 +1094,127 @@ mod tests {
     fn freejobalert_reads_age_from_the_intro_when_the_table_has_none() {
         let html = "<p>QUALIFICATION Graduate, MS/MD VACANCY 2 Posts AGE LIMIT 25 - 58 Years LAST DATE 26-11-2026</p>";
         assert_eq!(freejobalert_age_limit(html).as_deref(), Some("25 to 58 years"));
+    }
+
+    #[test]
+    fn a_last_date_in_the_age_cell_is_not_an_age() {
+        let html = "<table><tr><td>Age Limit</td><td>20 November 2026</td></tr></table>";
+        assert_eq!(freejobalert_age_limit(html), None);
+        assert_eq!(crate::pdf::numeric_age("20 November 2026"), None);
+    }
+
+    #[test]
+    fn prefers_the_application_portal_over_the_home_page() {
+        let html = r#"
+        <table>
+          <tr><td><a href="https://www.freejobalert.com/articles/x">Recruitment details</a></td></tr>
+          <tr><td>Official Website</td><td><a href="https://iitgn.ac.in/">IITGN</a></td></tr>
+          <tr><td>Apply Online</td><td><a href="http://recruitment.iitgn.ac.in/projectstaff/">Click Here</a></td></tr>
+        </table>"#;
+        assert_eq!(
+            freejobalert_official_link(html, "https://www.freejobalert.com/articles/x"),
+            Some("http://recruitment.iitgn.ac.in/projectstaff/".to_string())
+        );
+    }
+
+    #[test]
+    fn falls_back_to_the_official_site_and_skips_aggregators() {
+        let html = r#"
+        <table>
+          <tr><td><a href="https://play.google.com/store/apps/details?id=com.freejobalert">Download App</a></td></tr>
+          <tr><td>Official Website</td><td><a href="https://cmfri.org.in">ICAR-CMFRI</a></td></tr>
+        </table>"#;
+        assert_eq!(
+            freejobalert_official_link(html, "https://www.freejobalert.com/articles/cmfri"),
+            Some("https://cmfri.org.in/".to_string())
+        );
+    }
+
+    #[test]
+    fn reads_qualification_from_a_section_heading() {
+        let html = r#"
+        <div>
+          <h2>Vacancy Details</h2><p>Two posts.</p>
+          <h2>Essential Qualification</h2>
+          <p>M.Sc. (not earlier than 3 years) with a minimum of 55% marks in Chemistry.</p>
+          <h2>Pay</h2><p>Rs. 14,000</p>
+        </div>"#;
+        let qualification = freejobalert_qualification(html).unwrap_or_default();
+        assert!(qualification.contains("M.Sc."), "{qualification}");
+        assert!(!qualification.contains("Rs. 14,000"), "{qualification}");
+    }
+
+    #[test]
+    fn reads_qualification_from_a_table_header_column() {
+        let html = r#"
+        <table>
+          <tr><th>Post</th><th>Essential Qualification</th><th>Desirable Qualification</th></tr>
+          <tr><td>Project Associate-II</td>
+              <td>Master's degree in Fisheries Science with 60% marks.</td>
+              <td>NET / GATE</td></tr>
+          <tr><td>Project Assistant</td>
+              <td>Bachelor's degree in Zoology with 60% marks.</td>
+              <td>Field sampling</td></tr>
+        </table>"#;
+        let qualification = freejobalert_qualification(html).unwrap_or_default();
+        assert!(qualification.contains("Master's degree"), "{qualification}");
+        assert!(qualification.contains("Bachelor's degree"), "{qualification}");
+    }
+
+    #[test]
+    fn ignores_a_document_checklist_sold_as_a_qualification() {
+        let html = r#"
+        <table><tr><td>Qualification</td><td>Required for Eligibility Verification</td></tr></table>
+        <h2>Educational Qualification</h2><p>Any Graduate from a recognised university.</p>"#;
+        assert_eq!(
+            freejobalert_qualification(html).as_deref(),
+            Some("Any Graduate from a recognised university.")
+        );
+    }
+
+    #[test]
+    fn ignores_the_hidden_json_ld_faq_answer() {
+        let html = r#"
+        <h2>Q5. What qualification is needed for this recruitment?</h2>
+        <script type="application/ld+json">
+          {"@type":"Answer","text":"is needed for this recruitment?","acceptedAnswer":{"@type":"Answer","text":"Officers holding analogous posts"}}
+        </script>
+        <h2>Eligibility Criteria</h2>
+        <p>Qualification: Officers holding analogous posts with three years regular service.</p>"#;
+        let qualification = freejobalert_qualification(html).unwrap_or_default();
+        assert!(qualification.contains("Officers holding analogous posts"), "{qualification}");
+        assert!(!qualification.contains("acceptedAnswer"), "{qualification}");
+        assert!(!qualification.contains("@type"), "{qualification}");
+    }
+
+    #[test]
+    fn falls_through_an_ineligible_section_to_a_valid_answer() {
+        let html = r#"
+        <h2>Eligibility Criteria</h2>
+        <p>The applicant's gross professional receipts from accountancy and auditing must not be less than Rs. 50 lakhs.</p>
+        <h2>Q3. What qualification is required?</h2>
+        <p>Candidates need an LLB from a recognised university.</p>"#;
+        assert_eq!(
+            freejobalert_qualification(html).as_deref(),
+            Some("Candidates need an LLB from a recognised university.")
+        );
+    }
+
+    #[test]
+    fn reads_the_quick_summary_qualification_and_age() {
+        let html = "<p>POST NAME Chartered Accountants QUALIFICATION CA LAST DATE 20-11-2026</p>";
+        assert_eq!(freejobalert_qualification(html).as_deref(), Some("CA"));
+
+        let age = "<p>AGE LIMIT 18 to 38 years PAY Rs. 1 LAST DATE 20-11-2026</p>";
+        assert_eq!(freejobalert_age_limit(age).as_deref(), Some("18 to 38 years"));
+    }
+
+    #[test]
+    fn visible_text_drops_script_and_style_bodies() {
+        let html = "<style>.x{color:red}</style><p>Qualification: Any Graduate</p><script>var secret = 1;</script>";
+        let text = visible_text(html);
+        assert!(text.contains("Any Graduate"), "{text}");
+        assert!(!text.contains("color:red"), "{text}");
+        assert!(!text.contains("secret"), "{text}");
     }
 }

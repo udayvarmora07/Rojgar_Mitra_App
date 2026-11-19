@@ -30,6 +30,11 @@ export type ApplicationRecord = {
    */
   title: string | null;
   sourceLink: string | null;
+  /**
+   * The organisation's own portal, when the scraper knew it at apply time. Older records do
+   * not have this field; they fall back to `sourceLink` and are labelled as a summary.
+   */
+  officialLink?: string | null;
 };
 
 export type ApplicationMap = Record<string, ApplicationRecord>;

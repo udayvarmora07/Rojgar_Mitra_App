@@ -50,6 +50,7 @@ describe('getJobById', () => {
           deadline: '2099-01-01',
           salary: null,
           source_link: null,
+          official_link: null,
           vacancies: null,
           qualification: null,
           advertisement_no: null,

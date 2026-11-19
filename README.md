@@ -32,9 +32,15 @@ contract.
   cached on the device; the app says when the copy on screen was last checked.
 - **Share a notice** — native share sheet, or a copied message on the web, carrying only facts
   already on the notice.
-- **Official PDF enrichment** — when an article says `As Per the Advertisement` or omits the
-  age, the linked GPSC/OJAS/GSSSB PDF is read for the qualification and age. The extraction
-  never invents a fact; a scanned or silent PDF leaves the gap open.
+- **Official notice enrichment** — the article's own sections, its `Quick Summary`, the
+  official OJAS/GPSC page and the linked notification PDF are read in that order. A scanned
+  PDF is OCR-read (Tesseract, Gujarati + English); a Gujarati PDF is read with Gujarati
+  patterns. The extraction never invents a fact: a project post with no age limit stores the
+  qualification and leaves the age empty.
+- **Honest apply destination** — every notice stores the organisation's own portal, form or
+  notification document when the source exposes one. The action is labelled `Apply on Official
+  Website`, `Open Application Form`, `Open Official Notification`, or `Read the Full Notice`;
+  a FreeJobAlert article is never called an official website.
 
 The interface is deliberately plain: a navy masthead, dated stubs, rectangular status stamps,
 ruled fields, mono numerals for measurements, no gradients, no shadows, no decorative motion.
@@ -66,29 +72,38 @@ Captured at 390×844 from the running app and from the Android emulator, in
 
 ## Data coverage
 
-Measured against the hosted project on 19 Nov 2026. The daily scraper keeps adding notices, so
-the table shows the backfill snapshot and the live state at the time of writing:
+Measured against the hosted project on 19 Nov 2026, after the OCR and destination pass. The
+daily scraper keeps adding notices, so the "before" column is the 95 live notices that existed
+at the start of the pass:
 
-| Fact | Before (87 live) | After backfill (87 live) | Current (95 live) |
-|---|---:|---:|---:|
-| Eligibility row | 40 (46%) | **55 (63%)** | **60 (63%)** |
-| Numeric age + usable qualification | 35 (40%) | **50 (57%)** | **53 (56%)** |
-| Pay | 69 (79%) | **83 (95%)** | **90 (95%)** |
+| Fact | Before (95 live) | After (95 live) |
+|---|---:|---:|
+| Eligibility row | 60 (63%) | **95 (100%)** |
+| Usable qualification | 53 (56%) | **95 (100%)** |
+| Numeric age | 53 (56%) | **63 (66%)** |
+| Official destination | 0 | **95 (100%)** |
+| Pay | 90 (95%) | **90 (95%)** |
 
-The article summary is read first; the official notification PDF fills what it leaves out.
-The remaining gaps are honest: project/contract posts with no age limit, scanned image PDFs,
-Gujarati PDFs whose embedded fonts defeat text extraction, and PDFs that `robots.txt` excludes.
-Nothing is inferred from silence.
+The article summary is read first; the official page and notification PDF fill what it leaves
+out. The remaining 32 notices without a numeric age are honest gaps: project and contract posts
+that state no age limit (seven carry a truthful note such as `Varies by post` or a deputation
+condition), plus a few whose age appears only in a PDF that `robots.txt` excludes or a host with
+an incomplete TLS chain. Nothing is inferred from silence.
 
-Run the PDF pass in dry-run mode (needs Poppler's `pdftotext`):
+Run the enrichment pass in dry-run mode (needs Poppler, and Tesseract for scanned/Gujarati
+notices):
 
 ```bash
+# Ubuntu/Debian
+sudo apt-get install poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-guj
+
 cd scraper-rs
 cargo run --release -- --backfill-pdfs --dry-run
 # with write credentials: --backfill-pdfs --no-dry-run
 ```
 
-The monthly `PDF Enrichment` workflow runs the same command against the hosted project.
+The monthly `PDF Enrichment` workflow installs the same tools and runs the command against the
+hosted project.
 
 ---
 

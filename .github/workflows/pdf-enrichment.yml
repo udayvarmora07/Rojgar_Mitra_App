@@ -22,9 +22,9 @@ concurrency:
 
 jobs:
   enrich:
-    name: Backfill eligibility and pay from official PDFs
+    name: Backfill eligibility, pay and official links from notices
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,8 +37,13 @@ jobs:
         with:
           workspaces: scraper-rs
 
-      - name: Install Poppler
-        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      # Poppler extracts text, renders pages for OCR, and Tesseract reads scanned Gujarati
+      # and English circulars. Without the Gujarati pack a scanned Gujarati notice yields
+      # nothing, so it is installed explicitly rather than relying on a runner default.
+      - name: Install Poppler and Tesseract
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-eng tesseract-ocr-guj
 
       - name: Unit tests
         working-directory: scraper-rs

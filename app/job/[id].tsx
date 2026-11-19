@@ -15,8 +15,9 @@ import {
   LearningResource,
 } from '../../lib/supabase';
 import { deadlineStatus, formatDate } from '../../lib/deadline';
-import { isSafeWebUrl, sourceHost } from '../../lib/url';
+import { sourceHost } from '../../lib/url';
 import { openExternalLink } from '../../lib/externalLink';
+import { applyActionCopy, applyDestination, closedNoticeCopy } from '../../lib/officialLink';
 import { buildNoticeShareText, shareNoticeText } from '../../lib/share';
 import { readNotice, writeNotice } from '../../lib/jobCache';
 import { useLanguage } from '../../hooks/useLanguage';
@@ -134,18 +135,21 @@ export default function JobDetailScreen() {
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   const openSource = async () => {
-    if (!(await openExternalLink(job?.source_link))) Alert.alert(t('linkError'));
+    const destination = job ? applyDestination(job) : null;
+    if (!(await openExternalLink(destination?.url))) Alert.alert(t('linkError'));
   };
 
   const share = async () => {
     if (!job) return;
+    const destination = applyDestination(job);
     const text = buildNoticeShareText({
       title: job.title,
       department: job.department,
       lastDateLabel: t('lastDate'),
       lastDate: formatDate(job.deadline, language),
       sourceLabel: t('sourceLabel'),
-      link: isSafeWebUrl(job.source_link) ? job.source_link : null,
+      // Share the destination the reader would act on: the official portal when known.
+      link: destination?.url ?? null,
       footer: t('officialNote'),
     });
     const result = await shareNoticeText(text, job.title);
@@ -182,9 +186,15 @@ export default function JobDetailScreen() {
   const applicationDocs = documents.filter((d) => d.phase === 'Application');
   const examDocs = documents.filter((d) => d.phase === 'Exam Center');
   const expired = deadlineStatus(job.deadline) === 'expired';
-  const hasSource = isSafeWebUrl(job.source_link);
-  const canApply = hasSource && !expired;
+  // The official portal or notification document when the scraper found one; otherwise the
+  // third-party summary, which is useful but must never be labelled "official".
+  const destination = applyDestination(job);
+  const canApply = destination !== null && !expired;
+  const applyCopy = destination ? applyActionCopy(destination.kind) : null;
+  const closedCopy = destination ? closedNoticeCopy(destination.kind) : null;
   const source = sourceHost(job.source_link);
+  const officialSite =
+    destination?.kind === 'officialSite' ? sourceHost(destination.url) : null;
 
   return (
     <Screen>
@@ -257,6 +267,11 @@ export default function JobDetailScreen() {
               {t('sourceLabel')}: {source}
             </Text>
           ) : null}
+          {officialSite ? (
+            <Text className="text-label text-ink-mute mt-1">
+              {t('officialSiteLabel')}: {officialSite}
+            </Text>
+          ) : null}
         </View>
 
         <SectionHeading title={t('jobInfo')} />
@@ -282,7 +297,9 @@ export default function JobDetailScreen() {
           ) : (
             details.map((detail) => (
               <View key={detail.id}>
-                <Fact label={t('ageLimit')} value={detail.age_limit} />
+                {detail.age_limit ? (
+                  <Fact label={t('ageLimit')} value={detail.age_limit} />
+                ) : null}
                 <Fact label={t('qualification')} value={detail.required_qualifications} />
                 {detail.application_fees ? (
                   <Fact label={t('fees')} value={detail.application_fees} />
@@ -440,11 +457,11 @@ export default function JobDetailScreen() {
             <Text className="text-label text-closing-text font-semibold text-center mb-2 leading-reading">
               {t('noticeClosedHint')}
             </Text>
-            {hasSource ? (
+            {destination ? (
               <Button
                 variant="secondary"
                 icon="open-outline"
-                label={t('openNotice')}
+                label={t(closedCopy?.label ?? 'openNotice')}
                 onPress={openSource}
               />
             ) : null}
@@ -452,7 +469,7 @@ export default function JobDetailScreen() {
         ) : (
           <Button
             icon={canApply ? 'open-outline' : 'school-outline'}
-            label={canApply ? t('applyOnline') : t('startPractice')}
+            label={canApply ? t(applyCopy?.label ?? 'readFullNotice') : t('startPractice')}
             onPress={canApply ? openSource : () => router.push('/practice')}
           />
         )}

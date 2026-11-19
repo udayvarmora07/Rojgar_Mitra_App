@@ -45,6 +45,10 @@ pub struct Job {
     pub qualification: Option<String>,
     pub advertisement_no: Option<String>,
     pub location: Option<String>,
+    /// The organisation's own application page or notification document. Null when the source
+    /// page does not expose one; the app then falls back to the notice link without calling it
+    /// official.
+    pub official_link: Option<String>,
 }
 
 fn main() {
@@ -200,11 +204,20 @@ fn run(dry_run: bool, resources_only: bool, skip_resources: bool) -> i32 {
     0
 }
 
-/// Fills missing eligibility and pay from the official notification PDF linked by each article.
+/// Fills missing eligibility, pay and the official destination from the notice itself.
 ///
 /// This is deliberately separate from the daily listing run: it visits every live notice that
 /// still lacks a fact, which is a backfill-sized job rather than a daily one. A monthly workflow
-/// runs it, and it can be dispatched manually. `pdftotext -layout` (Poppler) supplies the text.
+/// runs it, and it can be dispatched manually.
+///
+/// Facts come from three places, in order of directness:
+///   1. the official page body (OAS/GPSC rows carry `Age 20 To 35 Years` and `Any Graduate`),
+///   2. the FreeJobAlert article's own table rows and section prose,
+///   3. up to two linked notification PDFs, which may be scanned (OCR) or Gujarati.
+///
+/// A row is written when the qualification is present. The age travels with it only when the
+/// notice states a numeric limit; project and deputation posts genuinely have none, and a
+/// qualification-only row is still usable.
 fn run_pdf_backfill(dry_run: bool) -> i32 {
     println!("\n📄 PDF enrichment (official notification PDFs)");
     println!("{}", "=".repeat(50));
@@ -212,7 +225,7 @@ fn run_pdf_backfill(dry_run: bool) -> i32 {
         println!("⚠️  DRY RUN - nothing will be written\n");
     }
     let today = dates::today().format("%Y-%m-%d").to_string();
-    let (jobs, with_details) = match db::live_jobs_for_backfill(&today) {
+    let (jobs, stored_details) = match db::live_jobs_for_backfill(&today) {
         Ok(value) => value,
         Err(err) => {
             eprintln!("❌ {err}");
@@ -222,38 +235,72 @@ fn run_pdf_backfill(dry_run: bool) -> i32 {
 
     let mut client = fetch::Client::new();
     let mut details: Vec<db::DetailRow> = Vec::new();
+    let mut repairs: Vec<(String, Option<String>, Option<String>)> = Vec::new();
     let mut salaries: Vec<(String, String)> = Vec::new();
+    let mut official_links: Vec<(String, String)> = Vec::new();
     let mut scanned = 0usize;
 
     for job in jobs {
-        let needs_details = !with_details.contains(&job.id);
+        let stored = stored_details.get(&job.id);
+        let needs_details = stored.is_none();
+        let stored_age_ok = stored
+            .and_then(|detail| detail.age_limit.as_deref())
+            .is_some_and(|value| pdf::numeric_age(value).is_some());
+        let stored_qual_ok = stored
+            .is_some_and(|detail| pdf::valid_qualification(&detail.required_qualifications));
+        // A row that holds a date in the age cell or a document fragment in the qualification
+        // cell is repaired rather than duplicated.
+        let needs_repair = stored.is_some() && (!stored_age_ok || !stored_qual_ok);
         let needs_salary = job.salary.is_none();
-        if !needs_details && !needs_salary {
+        let needs_official =
+            job.official_link.is_none() && job.source_link.contains("freejobalert.com");
+        if !needs_details && !needs_salary && !needs_official && !needs_repair {
             continue;
         }
+        // OJAS and GPSC links are the official page already, and their facts are in the body.
+        let direct_official = !job.source_link.contains("freejobalert.com");
         let Some(html) = client.get(&job.source_link) else {
             continue;
         };
         scanned += 1;
 
-        let article_age = parse::freejobalert_age_limit(&html)
-            .as_deref()
-            .and_then(pdf::numeric_age)
-            .or_else(|| pdf::age_from_html(&html));
+        let page = pdf::page_facts(&html);
+        let article_age = parse::freejobalert_age_limit(&html);
         let article_qual = parse::freejobalert_qualification(&html)
             .filter(|value| pdf::valid_qualification(value));
         let article_pay = parse::freejobalert_salary(&html);
+        let official_link = if needs_official {
+            parse::freejobalert_official_link(&html, &job.source_link)
+        } else {
+            None
+        };
 
         let advt = pdf::advt_number(&job.title);
-        let candidates = pdf::notification_pdfs(&html, &job.source_link, advt.as_deref());
+        let candidates = if direct_official {
+            Vec::new()
+        } else {
+            pdf::notification_pdfs(&html, &job.source_link, advt.as_deref())
+        };
         let mut facts = pdf::Facts::default();
         for url in candidates.iter().take(2) {
             let Some(bytes) = client.get_bytes(url) else {
                 continue;
             };
             match pdf::extract_text(&bytes) {
-                Ok(text) => {
-                    let found = pdf::extract_facts(&text);
+                Ok(extracted) => {
+                    let mut found = pdf::extract_facts(&extracted.text);
+                    // A legacy-font PDF can return a text layer that is Latin gibberish, so
+                    // the absence of a fact (or an obviously garbled layer) is the signal to
+                    // read the rendered page instead.
+                    let garbled = pdf::looks_garbled(&extracted.text);
+                    if (found.is_empty() || garbled) && !extracted.ocr {
+                        if let Ok(ocr) = pdf::extract_text_ocr(&bytes) {
+                            let retried = pdf::extract_facts(&ocr.text);
+                            if !retried.is_empty() {
+                                found = retried;
+                            }
+                        }
+                    }
                     if !found.is_empty() {
                         facts = found;
                         break;
@@ -266,26 +313,53 @@ fn run_pdf_backfill(dry_run: bool) -> i32 {
         let age = facts
             .age
             .clone()
+            .or_else(|| page.age.clone())
             .or(article_age)
             .filter(|value| pdf::numeric_age(value).is_some());
         let qualification = job
             .qualification
             .clone()
             .filter(|value| pdf::valid_qualification(value))
-            .or_else(|| facts.qualification.clone().filter(|value| pdf::valid_qualification(value)))
+            .or_else(|| {
+                facts
+                    .qualification
+                    .clone()
+                    .filter(|value| pdf::valid_qualification(value))
+            })
+            .or_else(|| {
+                page.qualification
+                    .clone()
+                    .filter(|value| pdf::valid_qualification(value))
+            })
             .or(article_qual);
-        let pay = facts.pay.clone().or(article_pay);
+        let pay = facts.pay.clone().or(page.pay).or(article_pay);
 
         let mut actions: Vec<String> = Vec::new();
         if needs_details {
-            if let (Some(age_limit), Some(required)) = (&age, &qualification) {
+            if let Some(required) = &qualification {
                 details.push(db::DetailRow {
                     job_source_link: job.source_link.clone(),
-                    age_limit: age_limit.clone(),
+                    age_limit: age.clone(),
                     required_qualifications: required.clone(),
                     application_fees: None,
                 });
-                actions.push(format!("eligibility ({age_limit})"));
+                actions.push(match &age {
+                    Some(age_limit) => format!("eligibility ({age_limit})"),
+                    None => "eligibility (qualification only)".to_string(),
+                });
+            }
+        } else if needs_repair {
+            // Only replace a field that is currently wrong or absent. A truthful non-numeric
+            // age such as "Varies by post" is preserved when no better value was found.
+            let age_update = if stored_age_ok { None } else { age.clone() };
+            let qualification_update = if stored_qual_ok {
+                None
+            } else {
+                qualification.clone()
+            };
+            if age_update.is_some() || qualification_update.is_some() {
+                repairs.push((job.id.clone(), age_update, qualification_update));
+                actions.push("eligibility repaired".to_string());
             }
         }
         if needs_salary {
@@ -294,15 +368,21 @@ fn run_pdf_backfill(dry_run: bool) -> i32 {
                 actions.push(format!("pay ({})", truncate(pay, 45)));
             }
         }
+        if let Some(link) = &official_link {
+            official_links.push((job.source_link.clone(), link.clone()));
+            actions.push(format!("official link ({})", truncate(link, 45)));
+        }
         if !actions.is_empty() {
             println!("  ✓ {}: {}", truncate(&job.title, 62), actions.join(", "));
         }
     }
 
     println!(
-        "\n📊 scanned {scanned} articles · {} eligibility rows · {} pay fills",
+        "\n📊 scanned {scanned} articles · {} eligibility rows · {} repairs · {} pay fills · {} official links",
         details.len(),
-        salaries.len()
+        repairs.len(),
+        salaries.len(),
+        official_links.len()
     );
     if dry_run {
         println!("Dry run: nothing written.");
@@ -318,8 +398,20 @@ fn run_pdf_backfill(dry_run: bool) -> i32 {
         }
     }
     let mut failed = 0usize;
+    for (job_id, age, qualification) in &repairs {
+        if let Err(err) = db::update_job_details(job_id, age.as_deref(), qualification.as_deref()) {
+            eprintln!("❌ {err}");
+            failed += 1;
+        }
+    }
     for (link, pay) in &salaries {
         if let Err(err) = db::update_salary(link, pay) {
+            eprintln!("❌ {err}");
+            failed += 1;
+        }
+    }
+    for (source, official) in &official_links {
+        if let Err(err) = db::update_official_link(source, official) {
             eprintln!("❌ {err}");
             failed += 1;
         }
@@ -327,13 +419,18 @@ fn run_pdf_backfill(dry_run: bool) -> i32 {
     if failed > 0 {
         return 1;
     }
-    println!("Wrote {} salary updates.", salaries.len());
+    println!(
+        "Wrote {} salary updates and {} official links.",
+        salaries.len(),
+        official_links.len()
+    );
     0
 }
 
-/// FreeJobAlert article pages carry facts the listing table does not: `Job Location`, `Pay`
-/// and `Age Limit`. Fetching them for every row would triple a daily run, so only rows that
-/// are new (or still missing all three facts) are visited — one fetch fills every empty field.
+/// FreeJobAlert article pages carry facts the listing table does not: `Job Location`, `Pay`,
+/// `Age Limit` and the official destination. Fetching them for every row would triple a daily
+/// run, so only rows that are new (or still missing a fact) are visited — one fetch fills every
+/// empty field.
 fn enrich_locations(
     client: &mut fetch::Client,
     jobs: &mut [Job],
@@ -344,7 +441,8 @@ fn enrich_locations(
     let mut details: Vec<db::DetailRow> = Vec::new();
     let mut documents: Vec<db::DocumentRow> = Vec::new();
     for job in jobs.iter_mut() {
-        let complete = job.location.is_some() && job.salary.is_some();
+        let complete =
+            job.location.is_some() && job.salary.is_some() && job.official_link.is_some();
         if complete || present.contains(&job.source_link) {
             continue;
         }
@@ -368,16 +466,25 @@ fn enrich_locations(
                     got = true;
                 }
             }
-            // Eligibility facts for `job_details`. Both required columns must be present or the
-            // row cannot be written, so the pair is collected together.
+            // The official destination for the apply action. FreeJobAlert itself is excluded by
+            // the parser, so this is the organisation's portal or notification document.
+            if job.official_link.is_none() {
+                if let Some(link) = parse::freejobalert_official_link(&html, &job.source_link) {
+                    job.official_link = Some(link);
+                    got = true;
+                }
+            }
+            // Eligibility facts for `job_details`. The qualification is required; the age is
+            // only stored when the notice states a numeric limit, so `20 November 2026` in an
+            // `Age Limit` cell can never be published as an age.
             let age = parse::freejobalert_age_limit(&html);
             // "As Per the Advertisement" and "Other" are placeholders, not requirements.
             let qualification = parse::freejobalert_qualification(&html)
                 .filter(|value| pdf::valid_qualification(value));
-            if let (Some(age_limit), Some(required_qualifications)) = (age, qualification) {
+            if let Some(required_qualifications) = qualification {
                 details.push(db::DetailRow {
                     job_source_link: job.source_link.clone(),
-                    age_limit,
+                    age_limit: age,
                     required_qualifications,
                     application_fees: parse::freejobalert_fee(&html),
                 });

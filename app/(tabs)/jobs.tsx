@@ -38,7 +38,7 @@ import { FreshnessLine } from '../../components/ui/FreshnessLine';
 import { Screen } from '../../components/ui/Screen';
 import { useLanguage } from '../../hooks/useLanguage';
 import { openExternalLink } from '../../lib/externalLink';
-import { isSafeWebUrl } from '../../lib/url';
+import { applyDestination } from '../../lib/officialLink';
 import { loadApplications, type ApplicationMap } from '../../lib/applications';
 import { curve, palette } from '../../constants/theme';
 
@@ -258,16 +258,18 @@ export default function JobsScreen() {
             </View>
           </View>
         }
-        renderItem={({ item }) => (
-          <JobCard
-            job={item}
-            applied={appliedIds.has(item.id)}
-            onPress={() => router.push(`/job/${item.id}`)}
-            onApply={
-              isSafeWebUrl(item.source_link) ? () => applyToJob(item.source_link) : undefined
-            }
-          />
-        )}
+        renderItem={({ item }) => {
+          const destination = applyDestination(item);
+          return (
+            <JobCard
+              job={item}
+              applied={appliedIds.has(item.id)}
+              onPress={() => router.push(`/job/${item.id}`)}
+              onApply={destination ? () => applyToJob(destination.url) : undefined}
+              applyKind={destination?.kind}
+            />
+          );
+        }}
         ListEmptyComponent={
           offline && jobs.length === 0 ? (
             <EmptyState

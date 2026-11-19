@@ -17,6 +17,7 @@ function job(partial: Partial<Job>): Job {
     deadline: '2026-12-31',
     salary: null,
     source_link: null,
+    official_link: null,
     vacancies: null,
     qualification: null,
     advertisement_no: null,

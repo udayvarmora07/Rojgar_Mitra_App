@@ -123,6 +123,7 @@ describe('JobCard', () => {
     location: null,
     salary: '₹19,950',
     source_link: 'https://ojas.gujarat.gov.in/',
+    official_link: null,
     created_at: '',
     updated_at: null,
   };
@@ -145,7 +146,7 @@ describe('JobCard', () => {
     render(<JobCard job={job} onPress={onPress} onApply={onApply} />);
 
     fireEvent.press(
-      screen.getByRole('link', { name: 'Apply Now - Official Website: Junior Clerk' })
+      screen.getByRole('link', { name: 'Read the Full Notice: Junior Clerk' })
     );
     expect(onApply).toHaveBeenCalledTimes(1);
     expect(onPress).not.toHaveBeenCalled();

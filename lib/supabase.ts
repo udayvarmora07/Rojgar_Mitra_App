@@ -122,7 +122,7 @@ function normalizeJob(row: Job): Job {
 function normalizeJobDetail(row: JobDetail): JobDetail {
   return {
     ...row,
-    age_limit: decodeHtmlEntities(row.age_limit),
+    age_limit: row.age_limit === null ? null : decodeHtmlEntities(row.age_limit),
     required_qualifications: decodeHtmlEntities(row.required_qualifications),
     application_fees: plainText(row.application_fees),
   };

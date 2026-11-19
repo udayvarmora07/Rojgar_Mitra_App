@@ -51,7 +51,7 @@ export type Database = {
       }
       job_details: {
         Row: {
-          age_limit: string
+          age_limit: string | null
           application_fees: string | null
           created_at: string
           id: string
@@ -59,7 +59,7 @@ export type Database = {
           required_qualifications: string
         }
         Insert: {
-          age_limit: string
+          age_limit?: string | null
           application_fees?: string | null
           created_at?: string
           id?: string
@@ -67,7 +67,7 @@ export type Database = {
           required_qualifications: string
         }
         Update: {
-          age_limit?: string
+          age_limit?: string | null
           application_fees?: string | null
           created_at?: string
           id?: string
@@ -93,6 +93,7 @@ export type Database = {
           education_level: string | null
           id: string
           location: string | null
+          official_link: string | null
           post_date: string
           qualification: string | null
           salary: string | null
@@ -109,6 +110,7 @@ export type Database = {
           education_level?: string | null
           id?: string
           location?: string | null
+          official_link?: string | null
           post_date: string
           qualification?: string | null
           salary?: string | null
@@ -125,6 +127,7 @@ export type Database = {
           education_level?: string | null
           id?: string
           location?: string | null
+          official_link?: string | null
           post_date?: string
           qualification?: string | null
           salary?: string | null
