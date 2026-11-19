@@ -44,6 +44,10 @@ notices, Deputy Registrar, Resident Medical Doctor, Senior Trainer Consultant, W
 Professional-I and the Sardar Patel fellowship. Eleven of those notices also gained pay, plus
 Apprentice, Gujarat Subordinate Service and the Graduate/Technician apprentices (14 fills).
 
+The daily scraper has since added eight notices. At the time of writing the live project has
+60/95 eligibility rows (63%), 53/95 with a numeric age and usable qualification (56%) and
+90/95 pay (95%) — the same ratios, because new rows come through the same article path.
+
 **Verified**
 - Rust: **47 tests**, `cargo clippy --all-targets -- -D warnings` clean.
 - `--backfill-pdfs --dry-run` against the hosted project completed; it scanned the 32 remaining
@@ -621,12 +625,13 @@ advertised)`.
 > install -r`, and drive it with `~/.maestro/bin/maestro test e2e/android/smoke.yaml`.
 >
 > The highest-value remaining product work is a "jobs I qualify for" view. Coverage is now
-> **55/87 eligibility rows (63%; 50 with a numeric age and usable qualification)** and
-> **83/87 pay (95%)**; the remaining notices need OCR for scanned PDFs or a Gujarati-aware
-> extractor. `documents_required` has 227 rows across 38 jobs for the same reason. Run the PDF
-> pass with `cd scraper-rs && cargo run --release -- --backfill-pdfs --dry-run` (Poppler's
-> `pdftotext` required; the monthly workflow writes). Touch UI only through
-> `design/tokens.json` and `components/ui/`.
+> **60/95 eligibility rows (63%; 53 with a numeric age and usable qualification)** and
+> **90/95 pay (95%)** (the backfill snapshot was 55/87 and 83/87); the remaining notices need
+> OCR for scanned PDFs or a Gujarati-aware extractor. `documents_required` has 227 rows across
+> 38 jobs for the same reason. Run the PDF pass with
+> `cd scraper-rs && cargo run --release -- --backfill-pdfs --dry-run` (Poppler's `pdftotext`
+> required; the monthly workflow writes). Touch UI only through `design/tokens.json` and
+> `components/ui/`.
 
 ### What this pass changed, in one line each
 

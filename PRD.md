@@ -462,8 +462,9 @@ Rojgar_Mitra_App/
   never guessed.
 - The pass runs monthly (`PDF Enrichment`) and can be dispatched manually; the daily listing run
   stays unchanged and does not require Poppler.
-- Coverage after the 19 Nov 2026 pass: 55/87 eligibility rows (50 with a numeric age and usable
-  qualification) and 83/87 pay.
+- Coverage after the 19 Nov 2026 backfill: 55/87 eligibility rows (50 with a numeric age and
+  usable qualification) and 83/87 pay. The daily scraper keeps adding notices; the live project
+  at the time of writing is 60/95, 53 usable and 90/95 pay.
 
 ---
 

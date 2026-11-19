@@ -66,13 +66,14 @@ Captured at 390×844 from the running app and from the Android emulator, in
 
 ## Data coverage
 
-Measured against the hosted project on 19 Nov 2026, across 87 live notices:
+Measured against the hosted project on 19 Nov 2026. The daily scraper keeps adding notices, so
+the table shows the backfill snapshot and the live state at the time of writing:
 
-| Fact | Before | Now |
-|---|---|---|
-| Eligibility row | 40 (46%) | **55 (63%)** |
-| Numeric age + usable qualification | 35 (40%) | **50 (57%)** |
-| Pay | 69 (79%) | **83 (95%)** |
+| Fact | Before (87 live) | After backfill (87 live) | Current (95 live) |
+|---|---:|---:|---:|
+| Eligibility row | 40 (46%) | **55 (63%)** | **60 (63%)** |
+| Numeric age + usable qualification | 35 (40%) | **50 (57%)** | **53 (56%)** |
+| Pay | 69 (79%) | **83 (95%)** | **90 (95%)** |
 
 The article summary is read first; the official notification PDF fills what it leaves out.
 The remaining gaps are honest: project/contract posts with no age limit, scanned image PDFs,
