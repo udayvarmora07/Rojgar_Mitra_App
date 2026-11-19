@@ -188,7 +188,10 @@ describe('DeadlineReminderPanel', () => {
   });
 
   it('explains when the last date is too close to schedule anything', async () => {
-    render(<DeadlineReminderPanel job={{ ...job, deadline: daysFromNow(1) }} />);
+    // "Today" is too late at every time of day; "tomorrow" is not, because before 09:00 a
+    // reminder this morning is still before the deadline. The CI runner is UTC, so the test
+    // must not depend on the wall clock.
+    render(<DeadlineReminderPanel job={{ ...job, deadline: daysFromNow(0) }} />);
 
     await waitFor(() =>
       expect(screen.getByText(/too close to schedule a reminder/)).toBeTruthy()
