@@ -99,6 +99,12 @@ Confirmed functionality:
   registration-is-not-an-application trap marked and the exact photo/signature upload limits.
 - **Local application tracking**: mark a notice applied, keep its confirmation number, and see
   the reader's own list including notices whose deadline has passed.
+- **Per-notice deadline reminders**: one local notification at 09:00 three days before the last
+  date (the next morning when the notice is closer), listed in Settings, removable in one tap.
+  Tapping it opens that notice; tapping a document reminder opens the checklist.
+- **Offline notices**: an opened notice keeps its job facts, eligibility, documents and study
+  material on the phone, so it is still readable where the connection is not. A failed refresh
+  says so and keeps the saved copy.
 - **"New since your last visit"**: the count of notices that appeared since the previous
   session, so a daily reader does not re-scan the whole list.
 - Practice tests over six topics in three languages. The question pool is read first, AI

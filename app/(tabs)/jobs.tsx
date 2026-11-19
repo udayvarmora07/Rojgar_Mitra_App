@@ -34,6 +34,7 @@ import { Button } from '../../components/ui/Button';
 import { Banner, EmptyState, LoadingState } from '../../components/ui/States';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Mono } from '../../components/ui/Mono';
+import { FreshnessLine } from '../../components/ui/FreshnessLine';
 import { Screen } from '../../components/ui/Screen';
 import { useLanguage } from '../../hooks/useLanguage';
 import { openExternalLink } from '../../lib/externalLink';
@@ -44,7 +45,7 @@ import { curve, palette } from '../../constants/theme';
 export default function JobsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { jobs, loading, refreshing, offline, refresh } = useJobs();
+  const { jobs, loading, refreshing, offline, savedAt, refresh } = useJobs();
   const params = useLocalSearchParams<{
     deadline?: string;
     education?: string;
@@ -175,7 +176,7 @@ export default function JobsScreen() {
 
       <View className="bg-card border-b border-rule px-4 pt-3 pb-2">
         <FilterChips
-          accessibilityLabel={t('lastDate')}
+          accessibilityLabel={t('deadlineFilter')}
           chips={deadlineChips}
           selected={filters.deadline}
           onSelect={(deadline) => setFilters((f) => ({ ...f, deadline }))}
@@ -222,6 +223,7 @@ export default function JobsScreen() {
         ListHeaderComponent={
           <View>
             {offline && jobs.length > 0 ? <Banner text={t('offlineBanner')} /> : null}
+            <FreshnessLine savedAt={savedAt} className="mb-2" />
             {appliedJobs.length > 0 ? (
               <Pressable
                 accessibilityRole="button"
@@ -321,21 +323,23 @@ export default function JobsScreen() {
         <Text className="text-[11px] font-extrabold uppercase tracking-stamp text-ink-mute mb-2">
           {t('educationLevel')}
         </Text>
-        <FilterRow
-          label={t('allEducationLevels')}
-          count={live.length}
-          selected={filters.education === null}
-          onPress={() => setFilters((f) => ({ ...f, education: null }))}
-        />
-        {EDUCATION_LEVELS.map((level) => (
+        <View role="radiogroup" accessibilityLabel={t('educationLevel')}>
           <FilterRow
-            key={level.value}
-            label={t(level.labelKey)}
-            count={educationCounts[level.value]}
-            selected={filters.education === level.value}
-            onPress={() => setFilters((f) => ({ ...f, education: level.value }))}
+            label={t('allEducationLevels')}
+            count={live.length}
+            selected={filters.education === null}
+            onPress={() => setFilters((f) => ({ ...f, education: null }))}
           />
-        ))}
+          {EDUCATION_LEVELS.map((level) => (
+            <FilterRow
+              key={level.value}
+              label={t(level.labelKey)}
+              count={educationCounts[level.value]}
+              selected={filters.education === level.value}
+              onPress={() => setFilters((f) => ({ ...f, education: level.value }))}
+            />
+          ))}
+        </View>
 
         <View className="h-px bg-rule my-3" />
 
@@ -356,21 +360,23 @@ export default function JobsScreen() {
           />
         </View>
 
-        <FilterRow
-          label={t('allDepartments')}
-          count={live.length}
-          selected={filters.department === null}
-          onPress={() => selectDepartment(null)}
-        />
-        {shownDepartments.map((department) => (
+        <View role="radiogroup" accessibilityLabel={t('department')}>
           <FilterRow
-            key={department}
-            label={department}
-            count={departmentCounts.get(department) ?? 0}
-            selected={filters.department === department}
-            onPress={() => selectDepartment(department)}
+            label={t('allDepartments')}
+            count={live.length}
+            selected={filters.department === null}
+            onPress={() => selectDepartment(null)}
           />
-        ))}
+          {shownDepartments.map((department) => (
+            <FilterRow
+              key={department}
+              label={department}
+              count={departmentCounts.get(department) ?? 0}
+              selected={filters.department === department}
+              onPress={() => selectDepartment(department)}
+            />
+          ))}
+        </View>
       </BottomSheet>
     </Screen>
   );
@@ -426,12 +432,13 @@ function FilterRow({
   selected: boolean;
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       aria-checked={selected}
-      accessibilityLabel={label}
+      accessibilityLabel={`${label}, ${t('jobsCount', { count })}`}
       onPress={onPress}
       style={curve}
       className={`min-h-[56px] px-3 rounded-control border flex-row items-center mb-2 active:opacity-80 ${

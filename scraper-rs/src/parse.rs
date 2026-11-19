@@ -39,9 +39,76 @@ const ORGANISATIONS: &[(&str, &str)] = &[
     ("GETCO", "Gujarat Energy Transmission Corporation (GETCO)"),
 ];
 
+/// Decodes the HTML character references that appear in source text.
+///
+/// `scraper` decodes one layer while parsing, but some FreeJobAlert table cells carry a
+/// second layer (`&amp;rsquo;`), and the backfill that first populated `job_details` wrote
+/// the raw text. A reader must never see `Bachelor&rsquo;s` where the notice says
+/// "Bachelor's". Unknown names are left untouched rather than dropped.
+fn decode_entities(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(amp) = rest.find('&') {
+        out.push_str(&rest[..amp]);
+        let after = &rest[amp..];
+        let decoded = after
+            .find(';')
+            .filter(|end| *end <= 12)
+            .map(|end| (&after[1..end], end))
+            .and_then(|(body, end)| {
+                let ch = if let Some(hex) = body.strip_prefix("#x").or_else(|| body.strip_prefix("#X")) {
+                    u32::from_str_radix(hex, 16).ok().and_then(char::from_u32)
+                } else if let Some(num) = body.strip_prefix('#') {
+                    num.parse::<u32>().ok().and_then(char::from_u32)
+                } else {
+                    match body {
+                        "amp" => Some('&'),
+                        "lt" => Some('<'),
+                        "gt" => Some('>'),
+                        "quot" => Some('"'),
+                        "apos" => Some('\''),
+                        "nbsp" => Some(' '),
+                        "rsquo" => Some('’'),
+                        "lsquo" => Some('‘'),
+                        "rdquo" => Some('”'),
+                        "ldquo" => Some('“'),
+                        "ndash" => Some('–'),
+                        "mdash" => Some('—'),
+                        "hellip" => Some('…'),
+                        "bull" => Some('•'),
+                        "middot" => Some('·'),
+                        "copy" => Some('©'),
+                        "reg" => Some('®'),
+                        "trade" => Some('™'),
+                        "deg" => Some('°'),
+                        _ => None,
+                    }
+                };
+                ch.map(|ch| (ch, end))
+            });
+
+        match decoded {
+            Some((ch, end)) => {
+                out.push(ch);
+                rest = &after[end + 1..];
+            }
+            None => {
+                out.push('&');
+                rest = &after[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// Collapses runs of whitespace, which the portals scatter through their markup.
 pub fn clean(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
+    decode_entities(text)
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Maps a short code to a readable name; unknown codes pass through unchanged.
@@ -541,6 +608,27 @@ mod tests {
                     <tr><td>Payment Mode</td><td>Online</td></tr></table>";
         assert_eq!(freejobalert_age_limit(html), None);
         assert_eq!(freejobalert_salary(html), None);
+    }
+
+    #[test]
+    fn decodes_html_entities_in_notice_text() {
+        assert_eq!(
+            clean("Bachelor&rsquo;s degree &amp; diploma"),
+            "Bachelor’s degree & diploma"
+        );
+        assert_eq!(clean("A &#39;quoted&#39; word &#x2014; dash"), "A 'quoted' word — dash");
+        assert_eq!(clean("Unknown &bogus; stays"), "Unknown &bogus; stays");
+        assert_eq!(clean("5 &lt; 10 &gt; 2"), "5 < 10 > 2");
+    }
+
+    #[test]
+    fn article_qualification_is_read_as_plain_text() {
+        let html = "<table><tr><td>Qualification</td>\
+                    <td>Bachelor&rsquo;s degree in Fire &amp; Safety</td></tr></table>";
+        assert_eq!(
+            freejobalert_qualification(html).as_deref(),
+            Some("Bachelor’s degree in Fire & Safety")
+        );
     }
 
     #[test]

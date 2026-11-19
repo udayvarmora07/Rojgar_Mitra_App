@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
+import { decodeHtmlEntities, plainText } from './text';
 
 // Environment variables are prefixed with EXPO_PUBLIC_ for Expo to include them in the native bundle
 // These should be set in .env file and never exposed in frontend code
@@ -88,12 +89,47 @@ function normalizeResources(rows: unknown): LearningResourceWithJob[] {
   const list = (rows as ResourceQueryRow[] | null) ?? [];
   return list.map((row) => ({
     ...(row as unknown as LearningResource),
+    title: decodeHtmlEntities(row.title),
+    description: plainText(row.description),
     jobs: Array.isArray(row.jobs) ? (row.jobs[0] ?? null) : row.jobs,
   }));
 }
 
 function normalizeResourceRows(rows: unknown): LearningResource[] {
-  return ((rows as GeneratedResource[] | null) ?? []) as unknown as LearningResource[];
+  return ((rows as GeneratedResource[] | null) ?? []).map((row) => ({
+    ...(row as unknown as LearningResource),
+    title: decodeHtmlEntities(row.title),
+    description: plainText(row.description),
+  })) as unknown as LearningResource[];
+}
+
+/**
+ * Scraped text is decoded once here so every screen sees the notice as a reader would.
+ * Source links are left untouched: `&amp;` inside a query string must stay encoded.
+ */
+function normalizeJob(row: Job): Job {
+  return {
+    ...row,
+    title: decodeHtmlEntities(row.title),
+    department: decodeHtmlEntities(row.department),
+    qualification: plainText(row.qualification),
+    salary: plainText(row.salary),
+    location: plainText(row.location),
+    advertisement_no: plainText(row.advertisement_no),
+  };
+}
+
+function normalizeJobDetail(row: JobDetail): JobDetail {
+  return {
+    ...row,
+    age_limit: decodeHtmlEntities(row.age_limit),
+    required_qualifications: decodeHtmlEntities(row.required_qualifications),
+    application_fees: plainText(row.application_fees),
+  };
+}
+
+function normalizeDocument(row: DocumentRequired): DocumentRequired {
+  return { ...row, document_name: decodeHtmlEntities(row.document_name) };
 }
 
 // Query functions using Supabase client methods (parameterized by default)
@@ -108,7 +144,7 @@ export async function getJobs(): Promise<Job[]> {
     throw error;
   }
 
-  return data || [];
+  return (data ?? []).map(normalizeJob);
 }
 
 export async function getJobById(id: string): Promise<Job | null> {
@@ -119,11 +155,15 @@ export async function getJobById(id: string): Promise<Job | null> {
     .single();
 
   if (error) {
+    // PGRST116 is PostgREST's "no rows returned" for `.single()`. Every other error is a
+    // real failure, and the offline cache depends on being able to tell the two apart: a
+    // swallowed network error would look like a deleted notice and hide the saved copy.
+    if (error.code === 'PGRST116') return null;
     console.error('Error fetching job:', error);
-    return null;
+    throw error;
   }
 
-  return data;
+  return data ? normalizeJob(data) : null;
 }
 
 export async function getJobDetails(jobId: string): Promise<JobDetail[]> {
@@ -137,7 +177,7 @@ export async function getJobDetails(jobId: string): Promise<JobDetail[]> {
     throw error;
   }
 
-  return data || [];
+  return (data ?? []).map(normalizeJobDetail);
 }
 
 export async function getDocumentsRequired(jobId: string): Promise<DocumentRequired[]> {
@@ -151,7 +191,7 @@ export async function getDocumentsRequired(jobId: string): Promise<DocumentRequi
     throw error;
   }
 
-  return (data ?? []) as unknown as DocumentRequired[];
+  return ((data ?? []) as unknown as DocumentRequired[]).map(normalizeDocument);
 }
 
 const RESOURCE_ORDER = [

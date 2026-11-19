@@ -28,7 +28,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "single",
+      "name": "Rojgar Mitra",
+      "shortName": "Rojgar Mitra",
+      "lang": "en-IN",
+      "description": "Gujarat government job notices with last dates, eligibility and document checklists, in English, Gujarati and Hindi.",
+      "themeColor": "#14315B",
+      "backgroundColor": "#F4F5F7",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "preferRelatedApplications": true
     },
     "plugins": [
       "expo-router",

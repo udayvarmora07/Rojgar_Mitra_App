@@ -19,6 +19,15 @@ const ENABLED_KEY = 'settings:documents-reminder:v1';
 export type ReminderPermission = 'granted' | 'denied' | 'undetermined' | 'unsupported';
 export type EnableReminderResult = 'granted' | 'denied' | 'unsupported' | 'error';
 
+/**
+ * Only a path this app owns may be opened from a notification payload. Rejects absolute
+ * URLs, protocol-relative `//host` paths, backslashes and whitespace, so a crafted payload
+ * cannot turn a notification into a redirect.
+ */
+export function isInternalRoute(value: unknown): value is string {
+  return typeof value === 'string' && /^\/(?!\/)[^\s\\]*$/.test(value);
+}
+
 type ReminderContent = { title: string; body: string; channelName: string };
 
 /** Local notifications are an Android/iOS feature; the web build never schedules one. */
@@ -33,12 +42,37 @@ function granted(status: Notifications.NotificationPermissionsStatus): boolean {
   );
 }
 
-async function ensureChannel(name: string): Promise<void> {
+async function ensureChannel(channelId: string, name: string): Promise<void> {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+  await Notifications.setNotificationChannelAsync(channelId, {
     name,
     importance: Notifications.AndroidImportance.DEFAULT,
   });
+}
+
+/**
+ * Creates the Android channel and asks for permission if the OS still allows the prompt.
+ * Both reminder features need exactly this sequence before scheduling anything, so it is
+ * shared rather than duplicated with slightly different ordering.
+ */
+export async function ensureReminderPermission(
+  channelId: string,
+  channelName: string
+): Promise<EnableReminderResult> {
+  if (!remindersSupported()) return 'unsupported';
+  try {
+    // Android 13 shows the permission prompt only after a channel exists.
+    await ensureChannel(channelId, channelName);
+    const current = await Notifications.getPermissionsAsync();
+    let allowed = granted(current);
+    if (!allowed && current.canAskAgain) {
+      const asked = await Notifications.requestPermissionsAsync();
+      allowed = granted(asked);
+    }
+    return allowed ? 'granted' : 'denied';
+  } catch {
+    return 'error';
+  }
 }
 
 /**
@@ -87,7 +121,12 @@ async function schedule(content: ReminderContent): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(NOTIFICATION_ID);
   await Notifications.scheduleNotificationAsync({
     identifier: NOTIFICATION_ID,
-    content: { title: content.title, body: content.body },
+    content: {
+      title: content.title,
+      body: content.body,
+      // Tapping the reminder lands on the checklist it is about, not the home screen.
+      data: { url: '/documents' },
+    },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: DOCUMENT_REMINDER_HOUR,
@@ -107,15 +146,8 @@ export async function enableDocumentReminder(
 ): Promise<EnableReminderResult> {
   if (!remindersSupported()) return 'unsupported';
   try {
-    // Android 13 shows the permission prompt only after a channel exists.
-    await ensureChannel(content.channelName);
-    const current = await Notifications.getPermissionsAsync();
-    let allowed = granted(current);
-    if (!allowed && current.canAskAgain) {
-      const asked = await Notifications.requestPermissionsAsync();
-      allowed = granted(asked);
-    }
-    if (!allowed) return 'denied';
+    const permission = await ensureReminderPermission(CHANNEL_ID, content.channelName);
+    if (permission !== 'granted') return permission;
     await schedule(content);
     return 'granted';
   } catch {

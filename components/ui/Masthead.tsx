@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { curve, palette } from '../../constants/theme';
 import { Mono } from './Mono';
+import { Heading } from './Heading';
 
 type Props = {
   title: string;
@@ -69,14 +70,14 @@ export function Masthead({
           {right}
         </View>
 
-        <Text
-          accessibilityRole="header"
+        <Heading
+          level={1}
           className={`text-white font-extrabold tracking-tight ${
             size === 'display' ? 'text-display mt-4' : 'text-title mt-3'
           }`}
         >
           {title}
-        </Text>
+        </Heading>
         {subtitle ? (
           <Text className="text-navy-line text-body mt-1 leading-reading">{subtitle}</Text>
         ) : null}

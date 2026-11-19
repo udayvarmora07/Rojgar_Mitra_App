@@ -2,6 +2,7 @@ import { Pressable, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { palette } from '../../constants/theme';
 import { Mono } from './Mono';
+import { Heading } from './Heading';
 
 type Props = {
   title: string;
@@ -22,9 +23,9 @@ export function SectionHeading({ title, count, actionLabel, onAction, className 
     <View className={`mt-6 mb-3 ${className}`}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-baseline flex-1 pr-2">
-          <Text accessibilityRole="header" className="text-title font-extrabold text-ink tracking-tight">
+          <Heading level={2} className="text-title font-extrabold text-ink tracking-tight">
             {title}
-          </Text>
+          </Heading>
           {count !== undefined ? (
             <Mono className="text-label text-ink-mute ml-2">{count}</Mono>
           ) : null}

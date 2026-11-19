@@ -157,6 +157,8 @@
   - Deadline (highlighted in red if ≤7 days)
   - Salary (if available)
 - Pull-to-refresh functionality
+- A freshness line stating when the list was last checked from the network (just now, minutes,
+  today, yesterday, or a date)
 - "No results" state with helpful message
 - Quick actions: View Details, Apply Now
 
@@ -166,9 +168,16 @@
   - Post date, Deadline
   - Salary range
   - Eligibility criteria (age, qualifications, fees)
+  - Long official text is clamped to five lines with an explicit "Show full text" control;
+    the complete wording remains available and is never paraphrased
   - Required documents (Application & Exam phases)
+- The source site the notice came from, when it is a safe HTTP(S) link
+- Share this notice through the native share sheet (Web Share or a copied message on web),
+  carrying only facts already shown on the notice
 - Action buttons:
-  - "Apply Now - Official Website" (external link)
+  - "Apply Now - Official Website" (external link) — only while the last date has not passed
+  - On a closed notice: a written closed state and "Open the official notice" instead, because
+    the official page may carry a corrigendum or call letter
   - "Start Practice Test" (navigates to Practice tab)
   - "View Document Checklist"
 
@@ -228,6 +237,22 @@
 - Immediate results with explanations in Gujarati
 - "Generate New Test" button
 - Store test history locally
+
+### 5.7 Deadline Reminders
+
+The last date is the one fact a candidate cannot recover from missing it.
+
+- **On a notice** (only while a useful morning remains): one local notification at 09:00,
+  three days before the last date. When the notice is closer than three days, the next free
+  morning is used; when none remains, the app says so instead of scheduling.
+- **Control**: the button names the exact date before it is pressed, states a blocked
+  notification permission with a way to the OS settings, and can remove the reminder again.
+- **List** (`/reminders`, linked from Settings): every scheduled reminder with its notice
+  title, last date and reminder date/time, a way to open the notice, and a one-tap remove.
+- **Tap behaviour**: tapping the notification opens that notice. Tapping a document reminder
+  opens `/documents`. Only internal app paths are followed from a notification payload.
+- **Local only**: no push token, no server write. Records whose notice has closed are pruned.
+- **Unsupported platform**: the web build states that reminders work in the mobile app.
 
 ---
 
@@ -423,6 +448,8 @@ Rojgar_Mitra_App/
 
 ### 10.3 Offline Support
 - Jobs data: Cached with SWR, refresh on pull
+- Opened notice: the job row, eligibility, documents and resources are stored per notice and
+  painted before the network answers; a failed refresh keeps the saved copy and says so
 - Practice tests: Pre-loaded bank + last fetched
 - Language preference: AsyncStorage persistence
 
@@ -452,6 +479,10 @@ Rojgar_Mitra_App/
 - **API Keys:** Store in environment variables, access via Edge Functions only
 - **Service Role Key:** Never expose in frontend code
 - **User Data:** Minimal collection, local-first for preferences
+- **Web deployment:** CSP (self, Supabase-only connect), `nosniff`, a strict referrer policy,
+  frame denial, a permissions policy that disables camera/microphone/geolocation/payment, COOP
+  and HSTS. Both `vercel.json` and `public/_headers` carry them.
+- **Outbound links and notification paths** are validated before use; see `SECURITY.md`
 
 ---
 
@@ -461,6 +492,8 @@ Rojgar_Mitra_App/
 - Color contrast ratio: 4.5:1 minimum
 - Font scaling: Support system font size preferences
 - Screen reader: Proper labels and accessibility hints
+- Web: `<html lang>` follows the selected language; headings are level 1 for the screen title
+  and level 2 for sections
 
 ---
 
@@ -472,6 +505,12 @@ Rojgar_Mitra_App/
 | 1.1 | 2026-04-22 | Updated with current codebase structure |
 | 1.2 | 2026-11-05 | Hindi added; LLM switched to DeepSeek V4.1 Flash (Command Code) behind the `generate-test` Edge Function; offline-first jobs/tests; eligibility & document checklists built |
 | 1.3 | 2026-11-18 | Home education shortcuts and education filter; job location; study-material surface backed by a GSSSB/GPSSB resource scraper; locale-aware number/date formatting for English, Gujarati and Hindi |
+| 1.4 | 2026-11-19 | Share-a-notice, source attribution, list freshness, crash and not-found recovery screens, HTML-entity decoding for scraped text, web metadata and SPA rewrites |
+| 1.5 | 2026-11-19 | Per-notice deadline reminders (09:00, three days before, with a next-morning fallback), the `/reminders` list, and notification taps that open the notice or document checklist |
+| 1.6 | 2026-11-19 | Per-notice offline cache: an opened notice (facts, eligibility, documents, resources) stays readable without a connection; network failure and "no such row" are now distinct results |
+| 1.7 | 2026-11-19 | Long official requirements are clamped to five lines with a "Show full text" control; the full wording stays in the accessible label |
+| 1.8 | 2026-11-19 | Production web headers (CSP, nosniff, referrer, frame denial, permissions, COOP, HSTS), CI config/header/bundle-size guards, a non-breaking audit fix, and `SECURITY.md` |
+| 1.9 | 2026-11-19 | A closed notice no longer offers Apply: the sticky action becomes a closed explanation with a secondary official link |
 
 ---
 

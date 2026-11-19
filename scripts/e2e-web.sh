@@ -181,6 +181,33 @@ echo "==> My applications"
 check_text "No applications marked yet" "applications screen starts empty"
 "${AB[@]}" find text "Back" click >/dev/null 2>&1 || fail "applications has no back control"
 
+echo "==> Deadline reminders"
+# Seed one local reminder so the list, its remove action and the empty state are exercised.
+# The deadline is far in the future, so the screen's pruning keeps the record.
+"${AB[@]}" eval "
+  (() => {
+    localStorage.setItem('remind:v1:records', JSON.stringify({
+      'e2e-job': {
+        jobId: 'e2e-job',
+        title: 'E2E Clerk',
+        deadline: '2099-01-01',
+        scheduledFor: '2098-12-29T09:00:00.000Z'
+      }
+    }));
+    const el = Array.from(document.querySelectorAll('[role=\"button\"]'))
+      .find((n) => (n.getAttribute('aria-label') || '').startsWith('Deadline reminders'));
+    if (!el) return 'missing';
+    el.click();
+    return 'clicked';
+  })();
+" 2>/dev/null | grep -q clicked || fail "settings reminders row not tappable"
+check_text "E2E Clerk" "reminders screen lists the scheduled notice"
+check_text "Remove reminder" "reminders screen offers removal"
+audit_page "deadline reminders"
+"${AB[@]}" find text "Remove reminder" click >/dev/null 2>&1 || fail "remove reminder not tappable"
+check_text "No deadline reminders yet" "removing the last reminder returns the empty state"
+"${AB[@]}" find text "Back" click >/dev/null 2>&1 || fail "reminders has no back control"
+
 echo "==> Documents"
 "${AB[@]}" eval "
   (() => {

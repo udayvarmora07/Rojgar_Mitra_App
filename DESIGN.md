@@ -219,7 +219,40 @@ locale. A blocked permission is its own ruled footer with `Open phone settings`;
 without local notifications keeps the row disabled and says so. The switch is never left
 looking on when the OS would not deliver anything.
 
+### Deadline reminder
+
+One card on a notice: bell tile, `Deadline reminder`, and one line of state. Before it is set,
+the action names the date (`Remind me on 13 Dec 2026`); after it is set, the line names the
+date and time and the action becomes `Remove reminder`. The card turns open-green only when a
+reminder is actually scheduled with permission granted. A blocked permission replaces the
+action with `Open phone settings`; a notice with no useful morning left says so and offers no
+control. `/reminders` repeats the same facts in one row per notice, with removal as a sibling
+strip below the notice target.
+
+### Freshness line
+
+One quiet line under the masthead on Home and Jobs: a clock glyph and `Checked just now`,
+`Checked 12 min ago`, `Checked today`, `Checked yesterday`, or `Checked on 15 Nov 2026`. It comes
+from the cache timestamp, so it is honest while offline. It is 16px `ink-mute`; it never becomes
+a badge and never pushes the first action below the fold.
+
+### Source and share
+
+The job-detail NOTICE block carries a 48dp share control in its top row and one `Source:
+freejobalert.com` line under the deadline panel. The source is a hostname, not a raw URL, and is
+omitted when the link is not safe HTTP(S). Sharing sends only facts already on the notice: title,
+department, last date, source link and the official-notice warning. The confirmation (`Link
+copied...`) is a live region and clears itself after five seconds.
+
+### Recovery screens
+
+A render error shows a navy card, the sentence that the saved jobs are still on the phone, and
+Retry / Go to Home. A wrong URL shows the same frame with `Page not found` and one way home.
+Neither screen uses the safe-area context, because either can be rendered in place of the root
+layout.
+
 ### Section heading
+
 Title + optional mono count + optional single action, closed by a 1px rule. No eyebrow
 above it; the heading carries its own weight.
 
@@ -233,7 +266,10 @@ The footer keeps "Show N jobs" and "Clear filters" visible above a long list.
 
 ### Fact row
 Micro uppercase label above an 18px value, separated by hairlines. Replaces the old
-icon-plus-label stack; long values (qualification, advert number) get the full width.
+icon-plus-label stack; long values (qualification, advert number) get the full width. A value
+over 240 characters is clamped to five lines with a 48dp `Show full text` control; the full
+wording stays in the tree and in the accessible label, and the control announces `expanded`.
+Nothing official is paraphrased or dropped.
 
 ### Checklist row
 A square checkbox, title, description, and a written Ready / Not Ready state. Ready rows
@@ -261,15 +297,24 @@ above a filled icon; inactive tabs are `ink-mute` outlines. The bar is centred a
 
 ## 5. Screen composition
 
-- **Home** — masthead → "What do you want to do?" → live primary jobs action → Practice and
-  Documents peers → "Browse by category" index card (education levels with counts, then all
-  departments) → "Latest Jobs" with View all → one-line official-notice footnote.
+- **Home** — masthead → freshness line → "What do you want to do?" → live primary jobs action →
+  Practice and Documents peers → "Browse by category" index card (education levels with counts,
+  then all departments) → "Latest Jobs" with View all → one-line official-notice footnote.
 - **Jobs** — masthead with search → deadline segment + Filters → summary line (education ·
-  department) → "Sorted by last date" / clear → job cards. The filter sheet carries education
-  levels first, then the searchable department list with counts.
-- **Job detail** — masthead → NOTICE block with title and deadline panel → facts (including
-  Location) → eligibility → documents → Study material → practice CTA → lexically last, a
-  sticky Apply bar.
+  department) → freshness line → "Sorted by last date" / clear → job cards. The filter sheet
+  carries education levels first, then the searchable department list with counts.
+- **Job detail** — masthead → NOTICE block with title, share control, deadline panel and source
+  → facts (including Location) → eligibility → documents → deadline reminder → Study material
+  → practice CTA → lexically last, a sticky Apply bar. A cached copy paints first; when the
+  refresh fails, an offline banner and the freshness line sit above the notice instead of a
+  failure screen. After the last date the sticky bar becomes the closed sentence plus a
+  secondary `Open the official notice`; it never offers an application that cannot be made.
+- **Deadline reminders** — masthead → one row per scheduled notice (title, last date, reminder
+  date and time) with a remove strip; the empty state offers the job list.
+- **Settings** — language first, then checklists, guide, applications, deadline reminders,
+  about, saved data.
+- **Recovery** — an error boundary or a wrong URL shows a navy card, one sentence of context,
+  and Retry / Go to Home.
 - **Practice** — timer switch → 2-column topic grid (icon, name, 10 Q) → Study material link
   → past scores.
 - **Study material** — masthead → grouped rows: Practice tests, PDF documents, Videos,
@@ -299,6 +344,10 @@ and stamp carry the personality statically. Motion on a mid-range phone is delay
 - Every status is text first. Colour is reinforcement.
 - The date stub is hidden from assistive tech; the job card exposes the full date.
 - The language control has an explicit accessible name; the switch exposes checked state.
+- Masthead titles are level 1 and section headings level 2. `components/ui/Heading.tsx` adds
+  the web `aria-level` that React Native's own types do not carry.
+- On web, `<html lang>` follows the selected language (`en-IN`, `gu-IN`, `hi-IN`) so a screen
+  reader pronounces Gujarati as Gujarati.
 - `npm run typecheck`, `npm run lint`, `NODE_ENV=test npx jest` stay green.
 
 ## 8. Platform
@@ -308,6 +357,15 @@ is phone-first and constrained to a 600px column on wide screens. Safe areas are
 the masthead and sticky bars. Native stack/tab gestures remain intact; the custom masthead is
 a deliberate brand surface, not a replacement for the navigation back behaviour.
 
+The web build is a single-page export with `app.json` web metadata (name, language,
+description, theme colour, background) and a document language that follows the UI. Direct
+URLs need a rewrite to `index.html`; `vercel.json` and `public/_redirects` provide it, so a
+shared link opens the same screen instead of a 404. Production responses also carry the CSP,
+`nosniff`, a strict referrer policy, frame denial, a restrictive permissions policy, COOP and
+HSTS (`vercel.json`, `public/_headers`); `style-src` allows inline styles because React Native
+Web writes computed styles as attributes. The build was exercised under that CSP with zero
+violations.
+
 ## 9. Source map
 
 | Concern | Location |
@@ -316,6 +374,17 @@ a deliberate brand surface, not a replacement for the navigation back behaviour.
 | Tailwind token names | `tailwind.config.js` |
 | JS-side palette, `curve` | `constants/theme.ts` |
 | Masthead, screen frame, section heading | `components/ui/Masthead.tsx`, `Screen.tsx`, `SectionHeading.tsx` |
+| Heading levels (web `aria-level`) | `components/ui/Heading.tsx` |
+| Freshness and source | `lib/freshness.ts`, `components/ui/FreshnessLine.tsx`, `lib/url.ts` |
+| Share text and platform share | `lib/share.ts` |
+| Deadline reminder rule, storage and scheduling | `lib/deadlineReminders.ts` |
+| Reminder control, list and notification tap | `components/jobs/DeadlineReminderPanel.tsx`, `app/reminders.tsx`, `lib/reminders.ts`, `app/_layout.tsx` |
+| Scraped-text entity decoding | `lib/text.ts` (read time), `scraper-rs/src/parse.rs::clean` (write time) |
+| Offline notice cache | `lib/jobCache.ts` (read in `app/job/[id].tsx`) |
+| Fact row and long-value collapse | `components/ui/Card.tsx` |
+| Error and not-found screens | `components/ui/ErrorScreen.tsx`, `app/_layout.tsx` (`ErrorBoundary`), `app/+not-found.tsx` |
+| Web shell, rewrites and metadata | `app.json`, `vercel.json`, `public/_redirects`, `public/robots.txt` |
+| Web security headers and policy | `vercel.json`, `public/_headers`, `SECURITY.md` |
 | Date stub, stamp, job card | `components/jobs/DateStub.tsx`, `ui/Stamp.tsx`, `jobs/JobCard.tsx` |
 | Category shortcuts | `components/jobs/CategoryBoard.tsx` |
 | Study-material row | `components/resources/ResourceRow.tsx` |
@@ -329,7 +398,9 @@ a deliberate brand surface, not a replacement for the navigation back behaviour.
 
 **Do** lead with the date and the status; write labels as words; use mono for numbers; keep
 one primary action per view; group with space and hairlines; use the stamp for state; leave
-the rest of the screen quiet. A screen made only of static text needs `tabIndex={0}` on its
+the rest of the screen quiet. Say when the list was last checked. Name the source of a notice.
+Let a reader send a notice on. Keep an opened notice readable after the network is gone. A
+screen made only of static text needs `tabIndex={0}` on its
 scroll container, or a keyboard user cannot scroll it at all (axe `scrollable-region-focusable`,
 serious).
 
@@ -337,7 +408,8 @@ serious).
 a card, a second accent hue, a decorative eyebrow, or a webfont. Don't hide a primary action
 under a long scroller; pin it. Don't put the count only in colour; write it. Don't convey a
 verdict (correct/wrong, applied/not applied) with tint alone — write it, and put it in the
-accessible name.
+accessible name. Don't show raw scraped markup (`&amp;`, `&rsquo;`) to a reader; decode it at
+the data layer.
 
 ---
 

@@ -21,6 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { Banner, EmptyState, Footnote, LoadingState } from '../../components/ui/States';
 import { ActionCard } from '../../components/ui/ActionCard';
 import { SectionHeading } from '../../components/ui/SectionHeading';
+import { FreshnessLine } from '../../components/ui/FreshnessLine';
 import { Screen } from '../../components/ui/Screen';
 
 /**
@@ -31,7 +32,7 @@ import { Screen } from '../../components/ui/Screen';
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { jobs, loading, refreshing, offline, refresh } = useJobs();
+  const { jobs, loading, refreshing, offline, savedAt, refresh } = useJobs();
 
   const live = filterJobs(jobs, NO_FILTERS);
   const latest = live.slice(0, 8);
@@ -97,6 +98,8 @@ export default function HomeScreen() {
           }
         >
           {offline && jobs.length > 0 ? <Banner text={t('offlineBanner')} /> : null}
+
+          <FreshnessLine savedAt={savedAt} className="mb-1" />
 
           <SectionHeading title={t('quickActions')} className="mt-1" />
 

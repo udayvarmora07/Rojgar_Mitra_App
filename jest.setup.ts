@@ -13,8 +13,11 @@ jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn(async () => 'documents-reminder'),
   cancelScheduledNotificationAsync: jest.fn(async () => {}),
   AndroidImportance: { DEFAULT: 3 },
-  SchedulableTriggerInputTypes: { DAILY: 'daily' },
+  SchedulableTriggerInputTypes: { DAILY: 'daily', DATE: 'date' },
   IosAuthorizationStatus: { PROVISIONAL: 3 },
+  getLastNotificationResponse: jest.fn(() => null),
+  clearLastNotificationResponse: jest.fn(),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
 }));
 
 // Never hit a real Supabase project from unit tests.

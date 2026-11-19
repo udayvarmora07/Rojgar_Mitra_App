@@ -9,7 +9,286 @@ component record for the current visual system.
 
 ---
 
-## 0. Latest: native E2E, real data, and the application gap (2026-11-19)
+## 0. Latest: production hardening and closed-notice correctness (2026-11-19)
+
+This pass closed the gap between "the app works" and "the web deployment and CI are guarded".
+
+### What changed
+
+| Area | Change |
+|---|---|
+| Web headers | `vercel.json` and `public/_headers` set a content security policy (self, no inline scripts, Supabase-only connect), `nosniff`, a strict referrer policy, frame denial, a permissions policy that disables camera/microphone/geolocation/payment, COOP and HSTS. `style-src 'unsafe-inline'` is required because React Native Web writes computed styles inline. |
+| CSP test | A local header server served the real build under the production CSP. The app loaded live jobs, switched tabs, opened a notice and rendered icons with **zero `securitypolicyviolation` events**. |
+| CI | `app-checks` now runs `expo-doctor` and fails if either header file loses a required key. `build-web` fails if the JS bundle exceeds 3 MB or the CSS exceeds 60 KB. |
+| Dependencies | `npm audit fix` (non-breaking) removed the **critical** `shell-quote` advisory and took the total from **30 to 24** (dev included). The five remaining highs require Expo SDK 58 and are deliberately not force-upgraded. |
+| Policy | New `SECURITY.md`: threat model, secret locations, RLS, URL and notification-path validation, CSP, the known PAT revocation step, and the dependency position. |
+| Closed notices | A notice opened from a shared link after its last date no longer shows `Apply Now`. The sticky bar says the notice has closed and offers `Open the official notice` instead, because the official page is still where a corrigendum or call letter appears. The ApplyTracker stays available. |
+
+### Closed-notice check
+
+A direct URL can outlive the browse list, which hides expired notices. The detail screen now
+computes the deadline status before choosing the sticky action: expired → a closed explanation
+plus a secondary official link; otherwise → Apply / Practice as before. Covered by
+"does not invite an application to a notice that has closed" in `__tests__/jobDetail.test.tsx`
+and verified live against the CMTI notice (deadline 18 Nov 2026): the hint and official link
+are present, `Apply Now` is absent, axe 0/0/0.
+
+### Multilingual visual QA
+
+The new copy was rendered at 390×844 in Gujarati and Hindi, which are longer than English:
+Home, Jobs, a notice with the long requirement and the reminder panel, the reminders list and
+Settings. No clipping, no overflow, no truncated control. The web document language followed
+the UI (`gu-IN`, `hi-IN`). Evidence: `design/references/app-home-gu-qa.png`,
+`app-jobs-gu-qa.png`, `app-detail-gu-qa.png`, `app-longfact-gu-qa.png`,
+`app-reminders-gu-qa.png`, plus the Hindi `app-*-hi-qa.png` set.
+
+### The `NODE_ENV` trap, again
+
+This shell exports `NODE_ENV=production` and npm omits dev dependencies, so `npm audit fix`
+pruned Jest, ESLint and `@types/jest`. Executed exactly as recorded in §0.8:
+`NODE_ENV=development npm install --include=dev`. The lockfile kept the audit fixes and all
+gates returned to green. Run dependency commands with an explicit `NODE_ENV` from now on.
+
+### Verified in this session
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **25 suites, 197 tests pass** |
+| Expo checks | `npx expo-doctor` | **18/18** |
+| Web export | `expo export --platform web` | **1,838,974 bytes JS** + **15,026 bytes CSS** |
+| Bundle budget | the CI shell expression | JS under 3 MB, CSS under 60 KB |
+| Header check | the CI node check | all five required keys present in both files |
+| Workflow YAML | `python3 -c "yaml.safe_load(...)"` | parses |
+| CSP | secure header server + navigation | **0 violations**, live data and icons render |
+| Closed notice | live CMTI notice (deadline 18 Nov 2026) | closed hint + official link shown; `Apply Now` absent; **0 critical/serious/moderate** |
+| Audit | `npm audit` / `npm audit --omit=dev` | **critical 0**; 24 total (dev incl.), 5 high requiring SDK 58 |
+
+### Still open
+
+- The remaining high/moderate advisories are in Expo/Metro transitive tooling and have no
+  non-breaking fix. They are not in the exported client bundle.
+- The headers apply on Vercel and Netlify. A generic static host (or the plain
+  `python3 -m http.server` used by the E2E) sends none; that is a hosting choice, not an app
+  setting.
+- `expo-doctor` needs network in CI. It passed locally and in this session; if the runner cannot
+  reach the Expo API the step fails loudly rather than silently skipping.
+
+---
+
+## 0.1 Long official requirements no longer wall the page (2026-11-19)
+
+Some scraped eligibility paragraphs run to several hundred characters — the Rajkot Fire
+Officer notice needs a five-line block just to reach the next fact. `Fact` now clamps a value
+longer than 240 characters to five lines and offers `Show full text` / `Show less`.
+
+The official wording is never removed or paraphrased. The value's accessible label always
+carries the complete text, the control announces `expanded`, and the expander is a 48dp target
+in the reader's language. Short facts (location, posts, dates) are untouched.
+
+### Verified in this session
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **25 suites, 196 tests pass** |
+| Fact states | `__tests__/fact.test.tsx` | short values have no control; long values collapse, expand, and keep the full text; Gujarati label present |
+| Live render | SPA build, Fire Officer notice | computed `-webkit-line-clamp: 5` before, `none` after pressing `Show full text`; control becomes `Show less` |
+| Axe | the expanded notice | **0 critical, 0 serious, 0 moderate** |
+
+### Still open
+
+- The threshold is length-based, not semantic. A 250-character salary note is also collapsed;
+  that is acceptable, because no fact is lost and the control appears only where the text
+  actually overflows.
+
+---
+
+## 0.2 A notice stays readable offline (2026-11-19)
+
+The list was cached; the notice was not. A reader who found a post at home and opened it at
+the employment office with no signal got "Could not load jobs" and lost the facts they had
+already seen. This pass makes an opened notice a local record.
+
+### What changed
+
+| Area | Change |
+|---|---|
+| Cache | `lib/jobCache.ts` stores one record per opened notice under `jobs:notice:v1:<id>`: the job row, eligibility rows, documents and resources, plus the time it was saved. The `jobs:` prefix means "Clear saved data" already removes it. |
+| Read order | Job detail paints the cached notice immediately, then refreshes underneath it. The skeleton only appears when there is no cache. |
+| Partial failure | If the job loads but eligibility or documents fail, the cached copy of that section is kept and the screen says "Some details could not refresh" instead of blanking the section. |
+| Offline state | With a cache and a failed refresh, the screen shows "No internet. Showing the saved notice." and a freshness line; it never shows the full failure state while it has a readable copy. |
+| Not found vs. offline | **A real bug found by the live offline test:** `getJobById` swallowed every error and returned `null`, so a network failure looked like a deleted notice and the cache was never used. It now returns `null` only for PostgREST's `PGRST116` (no rows) and throws everything else. |
+
+### Verified in this session
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **24 suites, 193 tests pass** |
+| Cache contract | `__tests__/jobCache.test.ts` | round-trip, wrong id, corrupt and partial data |
+| Error contract | `__tests__/supabase.test.ts` | `PGRST116` → null; a real failure throws; text is normalized |
+| Offline screen | `__tests__/jobDetail.test.tsx` | saved notice with all requests failing; cache written on success; cached eligibility kept on a partial failure |
+| Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass (home, jobs, guide, applications, reminders, documents) |
+| Four-tab axe | `bash scripts/a11y-audit.sh` | **0 critical, 0 serious** |
+| Job-detail axe | SPA build with the cache path | **0 critical, 0 serious, 0 moderate** |
+| Live offline | agent-browser: open a notice, `network route "**/rest/v1/**" --abort`, go back and reopen | cache written; reopened screen shows the title, age limit, source and **"No internet. Showing the saved notice."**, with no failure state |
+
+### Still open
+
+- No eviction: the cache keeps every notice the reader has opened. At 94 advertisements and a
+  few kilobytes each this is well inside AsyncStorage's budget; a read-only archive of the whole
+  board would still be small. Revisit only if a much larger source is added.
+- iOS caching uses the same AsyncStorage path and is unverified on a device.
+
+### One line each
+
+| Area | Change |
+|---|---|
+| Offline | An opened notice is stored and painted before the network answers |
+| Partial | A failed section keeps its saved copy and says so |
+| Correctness | Network failure and "no such row" are no longer the same result |
+| Tests | Cache, error contract and the offline screen are pinned |
+
+---
+
+## 0.3 Deadline reminders: never miss the last date (2026-11-19)
+
+The most expensive failure in this domain is not a bad screen; it is a candidate who finds the
+notice but not the deadline. This pass adds one local reminder per notice, a screen that lists
+them, and notification taps that open the screen they are about.
+
+### What the reader gets
+
+- **On a notice**: a "Remind me on 13 Dec 2026" control under the document list. It names the
+  exact date before anything is scheduled, states the permission-blocked case with a way to the
+  OS settings, and says when the last date is too close to schedule anything.
+- **The rule**: one notification at **09:00 three days before** the last date. If the notice is
+  closer than that, the next free morning is used; if no morning is left before the deadline,
+  the panel says so and does not schedule.
+- **On Settings**: a "Deadline reminders" row. The list shows what is scheduled, opens the
+  notice, and removes a reminder in one tap.
+- **On tap**: the notification opens that job, not the home screen. Document reminders now open
+  `/documents`. Only internal paths are followed; absolute URLs, `//host` and backslash paths in
+  a payload are ignored.
+
+### Implementation notes
+
+| Concern | Decision |
+|---|---|
+| Identity | One stable identifier per job (`deadline-<jobId>`), cancelled and replaced before scheduling, so changing a language or reopening the screen never queues a second copy |
+| Storage | `remind:v1:records` in AsyncStorage, local only; records whose notice has closed are pruned on read |
+| Permission | Shared `ensureReminderPermission(channelId, channelName)` in `lib/reminders.ts`; Android channel `deadline-reminders`, created before the Android 13 prompt |
+| Time zone | 09:00 local time on the phone. This audience applies in Gujarat; a phone set to another zone will follow that zone, which is the honest behaviour |
+| Web | `remindersSupported()` is false; the detail panel says reminders work in the mobile app, and the list still renders from storage for parity/E2E |
+
+### Verified in this session
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **22 suites, 184 tests pass** |
+| Reminder logic | `__tests__/deadlineReminders.test.tsx` | 13 cases: the 3-day rule, next-morning fallback, today-before-09:00, too-soon, expired, denied permission, stable id, persistence, pruning, panel states |
+| Payload safety | `__tests__/reminders.test.tsx` | internal paths accepted; `https://`, `//host`, backslash and whitespace paths rejected |
+| Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass, **now covers the reminders list, removal, empty state and axe** |
+| Four-tab axe | `bash scripts/a11y-audit.sh` | **0 critical, 0 serious** |
+| Reminders axe | E2E `audit_page "deadline reminders"` | **0 critical, 0 serious** |
+| Android bundle | `expo export --platform android` | **4.99 MB** `.hbc`, resolves |
+| Expo checks | `npx expo-doctor` | **18/18** |
+| Direct routes | `/reminders`, `/settings`, a job URL through the SPA rewrite | 200 |
+
+### Still open
+
+- Delivery is not observed on a device. The scheduling contract (identifier, DATE trigger,
+  channel, permission states, persistence) is unit tested and the Android bundle compiles; a
+  native run should confirm the OS prompt and the 09:00 delivery.
+- Old records are pruned when their notice closes, but a notification already delivered cannot
+  be recalled; the medical/legal advice is not applicable, this is a date.
+
+### One line each
+
+| Area | Change |
+|---|---|
+| Reminder | One 09:00 notification three days before the last date, with a next-morning fallback |
+| Control | Job detail panel with exact date, blocked state, too-soon state and removal |
+| List | `/reminders` shows, opens and removes what is scheduled; Settings links to it |
+| Tap | Notification opens the job or the document checklist; payload paths are validated |
+| Tests | 13 reminder cases plus the E2E path and axe |
+
+---
+
+## 0.4 Trust, provenance and crash safety (2026-11-19)
+
+This pass hardened the product rather than adding a screen: it can no longer white-screen on a
+render error, a reader can send a notice on, the list says when it was last checked, every
+notice names its source, and scraped text no longer leaks HTML entities.
+
+### What changed
+
+| Area | Change |
+|---|---|
+| Crash safety | `app/_layout.tsx` exports an `ErrorBoundary`; `components/ui/ErrorScreen.tsx` says the saved jobs are still on the phone and offers Retry / Go to Home. It avoids the safe-area hook because it can replace the root layout. |
+| Wrong URLs | `app/+not-found.tsx` is a branded 404 with a way home, instead of the router default. |
+| Sharing | `lib/share.ts` builds the message from facts already on the notice; native uses `Share.share`, web uses Web Share then clipboard then a selected-textarea fallback. The job detail has a 48dp share control and a live-region confirmation. |
+| Provenance | The detail notice block shows `Source: <host>` (safe HTTP(S) links only) and the list shows a freshness line from the cache timestamp: just now / N min / today / yesterday / date. |
+| Text hygiene | `lib/text.ts` decodes HTML references at the data layer for jobs, details, documents and resources. `scraper-rs`'s `clean()` now decodes them too, so double-encoded article cells cannot reach the database. |
+| Web | `<html lang>` follows the selected language (`en-IN` / `gu-IN` / `hi-IN`); masthead titles are h1 and section headings h2; `app.json` gained the web name, short name, language, description, theme colour and background; `vercel.json` and `public/_redirects` supply the SPA rewrite, and `public/robots.txt` ships with the export. |
+| Discoverability | New `README.md` with the product, screens, stack, gates, deployment and privacy. |
+| A11y | Filter radios sit in a radio group with counts in their accessible names; the deadline segment has its own label instead of "Last Date". |
+
+### Data cleanup
+
+Eight fields in the hosted project held raw HTML references from the original backfill:
+1 `jobs.salary`, 4 `job_details.required_qualifications`, 3 `documents_required.document_name`
+(`&amp;`, `&rsquo;`, `&#039;`, `&#39;`). They were backed up to the session scratchpad, decoded
+with a transactional `pg_temp` function via `supabase db query --remote=wiyryfopgjdzirndyxzp`,
+and re-scanned to **0 remaining**. The app-side decoder means a future regression does not reach
+a reader even before the next scrape.
+
+### Verified in this session
+
+| Gate | Command | Result |
+|---|---|---|
+| Types | `npm run typecheck` | exit 0 |
+| Lint | `npm run lint` | exit 0, zero warnings |
+| Jest | `NODE_ENV=test npx jest` | **20 suites, 166 tests pass** |
+| Rust | `cargo test --locked` | **36 tests** |
+| Rust lint | `cargo clippy --locked -- -D warnings` | clean |
+| Web E2E | `bash scripts/e2e-web.sh` (hosted) | pass, 94 live jobs |
+| Four-tab axe | `bash scripts/a11y-audit.sh` | **0 critical, 0 serious** |
+| Job-detail axe | `agent-browser a11y` on a live notice | **0 critical, 0 serious, 0 moderate** |
+| Direct route | `/jobs` through an SPA-rewrite server | 200, Jobs screen renders (title `All Jobs`) |
+| Not found | `/no-such-page` through the same server | branded 404 with `Go to Home` |
+| Language tag | switch to Gujarati in the browser | `document.documentElement.lang = "gu-IN"`, UI in Gujarati |
+| Entity scan | REST scan of four tables | **0 remaining** |
+| Visual | `design/references/app-home-freshness.png`, `app-jobs-freshness.png`, `app-detail-share.png`, `app-notfound.png` | captured at 390×844 |
+
+### Still open
+
+- The web share control depends on the browser: Web Share needs HTTPS, and the clipboard needs a
+  focused document and a real user gesture. Both were exercised only through automation, where
+  Chrome refuses the clipboard without focus; the message builder and copied state are unit
+  tested. Native `Share.share` is not exercised without a device.
+- `README.md` claims only what is in the repository; there are still no users, ratings or press.
+
+### One line each
+
+| Area | Change |
+|---|---|
+| Reliability | Render errors show a recovery screen; unknown URLs show a branded page |
+| Reach | Share a notice; source host on the notice |
+| Honesty | "Checked just now / today / yesterday" on Home and Jobs |
+| Data | HTML entities decoded in the scraper, the app, and the stored rows |
+| Web | Language tag, heading levels, metadata, SPA rewrites, robots.txt |
+| Docs | README plus this record |
+
+---
+
+## 0.5 Native E2E, real data, and the application gap (2026-11-19)
 
 This pass did three things the project had never done: it ran the app on a **real Android
 emulator on this machine**, it **filled the two data columns that were always empty**, and it
@@ -260,15 +539,17 @@ advertised)`.
 
 ### Resume prompt for a fresh session
 
-> Read this file (§0 is the latest), then `PRODUCT.md`, `DESIGN.md` and `AGENTS.md`. All gates
-> are green (typecheck, lint, Jest 16 suites / 146 tests, Rust 34, Python 14, web E2E, native
-> E2E, and CI run 44404866302 with all five jobs). Run:
+> Read this file (§0 is the latest), then `PRODUCT.md`, `DESIGN.md`, `SECURITY.md` and
+> `AGENTS.md`. All gates are green (typecheck, lint, Jest 25 suites / 197 tests, Rust 36,
+> expo-doctor 18/18, web E2E incl. reminders, four-tab axe, and the CI run recorded in §0.5
+> with all five jobs). Run:
 >
 > ```bash
 > cd /home/uday-varmora/Rojgar_Mitra_App
 > export SUPABASE_URL="$(grep '^EXPO_PUBLIC_SUPABASE_URL=' .env | cut -d= -f2)"
 > export SUPABASE_ANON_KEY="$(grep '^EXPO_PUBLIC_SUPABASE_ANON_KEY=' .env | cut -d= -f2)"
 > npm run typecheck && npm run lint && NODE_ENV=test npx jest
+> npx expo-doctor
 > bash scripts/e2e-web.sh && bash scripts/a11y-audit.sh
 > ```
 >
@@ -279,9 +560,10 @@ advertised)`.
 > `android/app/build` and `~/.cache/google-chrome/*/Cache` first)**, install it with `adb
 > install -r`, and drive it with `~/.maestro/bin/maestro test e2e/android/smoke.yaml`.
 >
-> The highest-value remaining work is data coverage, not UI: 46% of jobs have eligibility and
-> 79% have pay, and the rest needs the official PDF parser. `documents_required` has 227 rows
-> across 38 jobs for the same reason. Touch UI only through `design/tokens.json` and
+> The highest-value remaining product work is a "jobs I qualify for" view; the highest-value
+> data work is coverage: 46% of jobs have eligibility and 79% have pay, and the rest needs the
+> official PDF parser. `documents_required` has 227 rows across 38 jobs for the same reason.
+> Touch UI only through `design/tokens.json` and
 > `components/ui/`.
 
 ### What this pass changed, in one line each
@@ -298,7 +580,7 @@ advertised)`.
 
 ---
 
-## 0.0 Complete UI redesign (2026-11-18)
+## 0.6 Complete UI redesign (2026-11-18)
 
 The whole frontend was replaced, not polished. The previous system was consistent but read as
 a generic Tailwind card stack; the new one has a visual point of view grounded in the
@@ -399,7 +681,7 @@ place. Visual evidence is in `design/references/`:
 
 ---
 
-## 0.1 Category shortcuts, education filtering, location and study material (2026-11-18)
+## 0.7 Category shortcuts, education filtering, location and study material (2026-11-18)
 
 This pass closed the three PRD gaps that were still open after the redesign: home category
 shortcuts + education-level filtering (4.1/5.1), job location (5.3), and the learning-resource
@@ -496,7 +778,7 @@ re-run and record them.
 
 ---
 
-## 0.2 List apply, document reminders, AI length policy, native audit (2026-11-18)
+## 0.8 List apply, document reminders, AI length policy, native audit (2026-11-18)
 
 This pass closed four of the five items left open after the redesign and the data/localization
 pass, and audited the fifth (the native pass), which still needs a device.

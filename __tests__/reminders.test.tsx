@@ -6,6 +6,7 @@ import {
   disableDocumentReminder,
   enableDocumentReminder,
   getReminderPermission,
+  isInternalRoute,
   loadReminderEnabled,
   reminderTimeLabel,
   saveReminderEnabled,
@@ -39,7 +40,11 @@ describe('document reminders', () => {
     expect(schedule).toHaveBeenCalledWith(
       expect.objectContaining({
         identifier: 'documents-reminder',
-        content: { title: content.title, body: content.body },
+        content: expect.objectContaining({
+          title: content.title,
+          body: content.body,
+          data: { url: '/documents' },
+        }),
         trigger: expect.objectContaining({ type: 'daily', hour: 9, minute: 0 }),
       })
     );
@@ -76,6 +81,18 @@ describe('document reminders', () => {
 
   it('formats the reminder time in the reader locale', () => {
     expect(reminderTimeLabel('en')).toMatch(/9:00/);
+  });
+
+  it('only follows internal paths from a notification payload', () => {
+    expect(isInternalRoute('/job/abc')).toBe(true);
+    expect(isInternalRoute('/documents')).toBe(true);
+    expect(isInternalRoute('/jobs?education=Graduate')).toBe(true);
+    expect(isInternalRoute('https://evil.example/')).toBe(false);
+    expect(isInternalRoute('//evil.example/')).toBe(false);
+    expect(isInternalRoute('/\\evil.example')).toBe(false);
+    expect(isInternalRoute(' /documents')).toBe(false);
+    expect(isInternalRoute(null)).toBe(false);
+    expect(isInternalRoute(42)).toBe(false);
   });
 });
 

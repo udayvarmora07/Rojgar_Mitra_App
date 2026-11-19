@@ -36,6 +36,39 @@ jobs:
       - name: Jest
         run: npm test -- --ci
 
+      - name: Expo config checks
+        run: npx expo-doctor
+        env:
+          CI: '1'
+
+      # The headers are a production control, so their absence must fail the build rather
+      # than surface only after a deploy. The Netlify copy is checked so the two cannot drift.
+      - name: Security headers are configured
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const vercel = require('./vercel.json');
+          const keys = new Set((vercel.headers || []).flatMap((h) => h.headers.map((x) => x.key)));
+          const required = [
+            'Content-Security-Policy',
+            'X-Content-Type-Options',
+            'Referrer-Policy',
+            'X-Frame-Options',
+            'Permissions-Policy',
+          ];
+          const missing = required.filter((k) => !keys.has(k));
+          if (missing.length) {
+            console.error('missing headers: ' + missing.join(', '));
+            process.exit(1);
+          }
+          const netlify = fs.readFileSync('public/_headers', 'utf8');
+          if (!netlify.includes('Content-Security-Policy')) {
+            console.error('public/_headers has no Content-Security-Policy');
+            process.exit(1);
+          }
+          console.log('security headers present');
+          NODE
+
   # The gates that prove the real query path, the real UI and the axe budget. They run the
   # same scripts as a developer machine against the hosted project, so CI checks the same
   # database the app ships with. The scripts still support the local Docker stack when
@@ -118,6 +151,16 @@ jobs:
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+      # The icon-barrel regression once cost 3.9 MB. A ceiling turns that class of mistake
+      # into a failing build instead of a note in a handoff.
+      - name: Bundle size budget
+        run: |
+          JS=$(find dist/_expo/static/js/web -name '*.js' -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+          CSS=$(find dist/_expo/static/css -name '*.css' -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+          echo "JS ${JS} bytes, CSS ${CSS} bytes"
+          [ "$JS" -lt 3000000 ] || { echo "::error::JS bundle ${JS} exceeds 3 MB"; exit 1; }
+          [ "$CSS" -lt 60000 ] || { echo "::error::CSS bundle ${CSS} exceeds 60 KB"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:
