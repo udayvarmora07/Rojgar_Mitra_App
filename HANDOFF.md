@@ -41,8 +41,8 @@ Rust PDF pass, extracts with Poppler's `pdftotext -layout`, and backfills the ho
 
 The 15 rows are six GPSC ads (age, pay and qualification), Surveyor, both Food Safety Officer
 notices, Deputy Registrar, Resident Medical Doctor, Senior Trainer Consultant, Warden, Young
-Professional-I and the Sardar Patel fellowship. The 14 pay fills are those plus Apprentice,
-Gujarat Subordinate Service and the Graduate/Technician apprentices.
+Professional-I and the Sardar Patel fellowship. Eleven of those notices also gained pay, plus
+Apprentice, Gujarat Subordinate Service and the Graduate/Technician apprentices (14 fills).
 
 **Verified**
 - Rust: **47 tests**, `cargo clippy --all-targets -- -D warnings` clean.
@@ -55,6 +55,8 @@ Gujarat Subordinate Service and the Graduate/Technician apprentices.
   full civil-engineering text behind `Show full text`; Food Safety Officer shows `18 to 37 years`
   and the Food Technology qualification. Axe: **0 violations** on both detail screens.
 - App gates unchanged: typecheck, lint, Jest 25/197.
+- CI run `44482843901` on `4002829`: **all six jobs green**, including the new Rust scraper
+  tests (54 s), live gates (2m2s), build web and the Android E2E (18m34s).
 
 **Still open**
 - The sticky CTA still says `Apply Now - Official Website` but opens the FreeJobAlert article, not
@@ -599,7 +601,7 @@ advertised)`.
 > Read this file (§0 is the latest), then `PRODUCT.md`, `DESIGN.md`, `SECURITY.md` and
 > `AGENTS.md`. All gates are green (typecheck, lint, Jest 25 suites / 197 tests, Rust 47,
 > expo-doctor 18/18, web E2E incl. reminders, four-tab axe, and the CI run recorded in §0.6
-> with all five jobs). Run:
+> with all six jobs, including Rust scraper tests). Run:
 >
 > ```bash
 > cd /home/uday-varmora/Rojgar_Mitra_App
