@@ -32,6 +32,9 @@ contract.
   cached on the device; the app says when the copy on screen was last checked.
 - **Share a notice** — native share sheet, or a copied message on the web, carrying only facts
   already on the notice.
+- **Official PDF enrichment** — when an article says `As Per the Advertisement` or omits the
+  age, the linked GPSC/OJAS/GSSSB PDF is read for the qualification and age. The extraction
+  never invents a fact; a scanned or silent PDF leaves the gap open.
 
 The interface is deliberately plain: a navy masthead, dated stubs, rectangular status stamps,
 ruled fields, mono numerals for measurements, no gradients, no shadows, no decorative motion.
@@ -57,6 +60,34 @@ Captured at 390×844 from the running app and from the Android emulator, in
 | Home (Gujarati QA) | `app-home-gu-qa.png` |
 | Job detail (Gujarati QA) | `app-detail-gu-qa.png` |
 | Deadline reminders (Gujarati QA) | `app-reminders-gu-qa.png` |
+| Backfilled PDF facts (GPSC) | `app-detail-pdf-facts.png` |
+
+---
+
+## Data coverage
+
+Measured against the hosted project on 19 Nov 2026, across 87 live notices:
+
+| Fact | Before | Now |
+|---|---|---|
+| Eligibility row | 40 (46%) | **55 (63%)** |
+| Numeric age + usable qualification | 35 (40%) | **50 (57%)** |
+| Pay | 69 (79%) | **83 (95%)** |
+
+The article summary is read first; the official notification PDF fills what it leaves out.
+The remaining gaps are honest: project/contract posts with no age limit, scanned image PDFs,
+Gujarati PDFs whose embedded fonts defeat text extraction, and PDFs that `robots.txt` excludes.
+Nothing is inferred from silence.
+
+Run the PDF pass in dry-run mode (needs Poppler's `pdftotext`):
+
+```bash
+cd scraper-rs
+cargo run --release -- --backfill-pdfs --dry-run
+# with write credentials: --backfill-pdfs --no-dry-run
+```
+
+The monthly `PDF Enrichment` workflow runs the same command against the hosted project.
 
 ---
 
@@ -68,9 +99,9 @@ Captured at 390×844 from the running app and from the Android emulator, in
 | Styling | NativeWind 4 (Tailwind 3.4). No `StyleSheet` |
 | Language | i18next — English, Gujarati, Hindi; compile-time key checking |
 | Backend | Supabase — Postgres, PostgREST, Edge Functions (Deno) |
-| Scrapers | Rust (production, `scraper-rs/`) and Python (legacy parity, `scraper/`) |
+| Scrapers | Rust (production, `scraper-rs/`; PDF enrichment via Poppler) and Python (legacy parity, `scraper/`) |
 | Tests | Jest + Testing Library, Rust `cargo test`, Python `unittest`, Maestro |
-| Gates | typecheck, lint, Jest, web E2E, axe, live-data contract, native smoke |
+| Gates | typecheck, lint, Jest, Rust tests + clippy, web E2E, axe, live-data contract, native smoke |
 
 ---
 
@@ -100,6 +131,10 @@ Scrapers:
 ```bash
 cd scraper-rs && cargo test --locked && cargo clippy --locked -- -D warnings
 scraper/venv/bin/python -m unittest discover -s scraper -p 'test_*.py'
+
+# PDF enrichment needs Poppler; dry-run is the default.
+sudo apt-get install -y poppler-utils   # Debian/Ubuntu
+cargo run --release -- --backfill-pdfs --dry-run
 ```
 
 The local Supabase-equivalent stack (Postgres + PostgREST + Edge Runtime behind Kong) is
@@ -133,7 +168,7 @@ components/practice/ QuestionCard, OptionButton, Timer
 lib/                 Data access, filtering, storage, i18n, share, freshness, applications
 constants/           Theme tokens, education taxonomy, documents, guide, test topics
 supabase/            Migrations, seed fixtures, Edge Function generate-test
-scraper-rs/          Production scraper (Rust)
+scraper-rs/          Production scraper + official-PDF enrichment (Rust)
 scraper/             Legacy Python scraper + parity tests
 e2e/android/         Maestro smoke flow
 scripts/             E2E, axe, live-data contract, local stack, DB sync

@@ -197,12 +197,31 @@ pub fn freejobalert_location(html: &str) -> Option<String> {
 /// The listing table has no salary column, so this is only available on the article page the
 /// scraper already fetches for the location. Both `Pay` and `Salary` are used across articles.
 pub fn freejobalert_salary(html: &str) -> Option<String> {
-    freejobalert_field(html, &["pay", "salary", "pay scale", "salary details"])
+    // `PayScale` (no space), `Stipend`, `Monthly Stipend` and `Remuneration` are used by the
+    // Gujarat/central advertisements just as often as `Pay` and `Salary`.
+    freejobalert_field(
+        html,
+        &[
+            "pay",
+            "payscale",
+            "pay scale",
+            "salary",
+            "salary details",
+            "monthly stipend",
+            "stipend",
+            "remuneration",
+            "honorarium",
+            "fellowship",
+        ],
+    )
 }
 
 /// The age limit stated on a FreeJobAlert article, e.g. `18 to 38 years`.
+///
+/// Some articles keep the age only in the intro sentence (`AGE LIMIT 25 - 58 Years`);
+/// [`crate::pdf::age_from_html`] is the fallback for those.
 pub fn freejobalert_age_limit(html: &str) -> Option<String> {
-    freejobalert_field(html, &["age limit", "age"])
+    freejobalert_field(html, &["age limit", "age"]).or_else(|| crate::pdf::age_from_html(html))
 }
 
 /// The application fee stated on a FreeJobAlert article, e.g. `Rs. 100 for General`.
@@ -726,5 +745,21 @@ mod tests {
         assert_eq!(strip_post_count("Staff Nurse – 31 Posts"), "Staff Nurse");
         assert_eq!(strip_post_count("Chief Engineer – 1 Posts"), "Chief Engineer");
         assert_eq!(strip_post_count("No Count Here"), "No Count Here");
+    }
+
+    #[test]
+    fn freejobalert_reads_payscale_stipend_and_remuneration_labels() {
+        let payscale = "<table><tr><td>PayScale</td><td>26000/- Fix Pay</td></tr></table>";
+        assert_eq!(freejobalert_salary(payscale).as_deref(), Some("26000/- Fix Pay"));
+        let stipend = "<table><tr><td>Monthly Stipend</td><td>Rs. 8,200 to Rs. 12,300</td></tr></table>";
+        assert_eq!(freejobalert_salary(stipend).as_deref(), Some("Rs. 8,200 to Rs. 12,300"));
+        let remuneration = "<table><tr><td>Remuneration</td><td>Rs. 50,000 per month</td></tr></table>";
+        assert_eq!(freejobalert_salary(remuneration).as_deref(), Some("Rs. 50,000 per month"));
+    }
+
+    #[test]
+    fn freejobalert_reads_age_from_the_intro_when_the_table_has_none() {
+        let html = "<p>QUALIFICATION Graduate, MS/MD VACANCY 2 Posts AGE LIMIT 25 - 58 Years LAST DATE 26-11-2026</p>";
+        assert_eq!(freejobalert_age_limit(html).as_deref(), Some("25 to 58 years"));
     }
 }

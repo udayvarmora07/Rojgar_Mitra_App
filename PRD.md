@@ -23,7 +23,7 @@
 | Styling | NativeWind v4 | UI styling |
 | Routing | Expo Router v6 | File-based navigation |
 | Backend/Database | Supabase (PostgreSQL) | Data storage |
-| Web Scraping | Python (BeautifulSoup/Requests) | Job data aggregation |
+| Data pipeline | Rust scraper + Poppler PDF enrichment (Python scraper kept for parity) | Job data aggregation and official-notice facts |
 | AI Integration | DeepSeek V4.1 Flash via Command Code API (OpenAI-compatible) | Practice test generation |
 
 ---
@@ -453,6 +453,18 @@ Rojgar_Mitra_App/
 - Practice tests: Pre-loaded bank + last fetched
 - Language preference: AsyncStorage persistence
 
+### 10.4 Official PDF enrichment
+- The FreeJobAlert article is read first. If it says `As Per the Advertisement`, omits the age,
+  or lacks pay, the linked GPSC/OJAS/GSSSB notification PDF is downloaded and its text extracted
+  with Poppler's `pdftotext -layout`.
+- Only a numeric age plus a valid qualification become a `job_details` row; a pay fill only
+  replaces a null. Scanned, Gujarati-font-encoded, silent or robots-disallowed PDFs are skipped,
+  never guessed.
+- The pass runs monthly (`PDF Enrichment`) and can be dispatched manually; the daily listing run
+  stays unchanged and does not require Poppler.
+- Coverage after the 19 Nov 2026 pass: 55/87 eligibility rows (50 with a numeric age and usable
+  qualification) and 83/87 pay.
+
 ---
 
 ## 11. Coding Standards
@@ -511,6 +523,7 @@ Rojgar_Mitra_App/
 | 1.7 | 2026-11-19 | Long official requirements are clamped to five lines with a "Show full text" control; the full wording stays in the accessible label |
 | 1.8 | 2026-11-19 | Production web headers (CSP, nosniff, referrer, frame denial, permissions, COOP, HSTS), CI config/header/bundle-size guards, a non-breaking audit fix, and `SECURITY.md` |
 | 1.9 | 2026-11-19 | A closed notice no longer offers Apply: the sticky action becomes a closed explanation with a secondary official link |
+| 2.0 | 2026-11-19 | Official-notification PDF enrichment in the Rust scraper (monthly workflow), a validated hosted backfill, and coverage raised from 46% to 63% eligibility and 79% to 95% pay |
 
 ---
 

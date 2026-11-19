@@ -22,6 +22,7 @@ mod dates;
 mod db;
 mod fetch;
 mod parse;
+mod pdf;
 mod resources;
 mod sources;
 
@@ -50,16 +51,22 @@ fn main() {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!("usage: rojgar-scraper [--dry-run | --no-dry-run] [--resources-only] [--skip-resources]");
+        println!("       rojgar-scraper --backfill-pdfs [--dry-run | --no-dry-run]");
         println!("  --dry-run        print what would be inserted (default)");
         println!("  --no-dry-run     insert into Supabase; needs SUPABASE_URL and");
         println!("                   SUPABASE_SERVICE_ROLE_KEY (or EXPO_PUBLIC_SUPABASE_URL)");
         println!("  --resources-only scrape official study material, not job listings");
         println!("  --skip-resources skip study-material pages");
+        println!("  --backfill-pdfs  read official notification PDFs for live notices that still");
+        println!("                   miss eligibility or pay (needs pdftotext/poppler-utils)");
         return;
     }
     let dry_run = !args.iter().any(|a| a == "--no-dry-run");
     let resources_only = args.iter().any(|a| a == "--resources-only");
     let skip_resources = args.iter().any(|a| a == "--skip-resources");
+    if args.iter().any(|a| a == "--backfill-pdfs") {
+        std::process::exit(run_pdf_backfill(dry_run));
+    }
     std::process::exit(run(dry_run, resources_only, skip_resources));
 }
 
@@ -193,6 +200,137 @@ fn run(dry_run: bool, resources_only: bool, skip_resources: bool) -> i32 {
     0
 }
 
+/// Fills missing eligibility and pay from the official notification PDF linked by each article.
+///
+/// This is deliberately separate from the daily listing run: it visits every live notice that
+/// still lacks a fact, which is a backfill-sized job rather than a daily one. A monthly workflow
+/// runs it, and it can be dispatched manually. `pdftotext -layout` (Poppler) supplies the text.
+fn run_pdf_backfill(dry_run: bool) -> i32 {
+    println!("\n📄 PDF enrichment (official notification PDFs)");
+    println!("{}", "=".repeat(50));
+    if dry_run {
+        println!("⚠️  DRY RUN - nothing will be written\n");
+    }
+    let today = dates::today().format("%Y-%m-%d").to_string();
+    let (jobs, with_details) = match db::live_jobs_for_backfill(&today) {
+        Ok(value) => value,
+        Err(err) => {
+            eprintln!("❌ {err}");
+            return 1;
+        }
+    };
+
+    let mut client = fetch::Client::new();
+    let mut details: Vec<db::DetailRow> = Vec::new();
+    let mut salaries: Vec<(String, String)> = Vec::new();
+    let mut scanned = 0usize;
+
+    for job in jobs {
+        let needs_details = !with_details.contains(&job.id);
+        let needs_salary = job.salary.is_none();
+        if !needs_details && !needs_salary {
+            continue;
+        }
+        let Some(html) = client.get(&job.source_link) else {
+            continue;
+        };
+        scanned += 1;
+
+        let article_age = parse::freejobalert_age_limit(&html)
+            .as_deref()
+            .and_then(pdf::numeric_age)
+            .or_else(|| pdf::age_from_html(&html));
+        let article_qual = parse::freejobalert_qualification(&html)
+            .filter(|value| pdf::valid_qualification(value));
+        let article_pay = parse::freejobalert_salary(&html);
+
+        let advt = pdf::advt_number(&job.title);
+        let candidates = pdf::notification_pdfs(&html, &job.source_link, advt.as_deref());
+        let mut facts = pdf::Facts::default();
+        for url in candidates.iter().take(2) {
+            let Some(bytes) = client.get_bytes(url) else {
+                continue;
+            };
+            match pdf::extract_text(&bytes) {
+                Ok(text) => {
+                    let found = pdf::extract_facts(&text);
+                    if !found.is_empty() {
+                        facts = found;
+                        break;
+                    }
+                }
+                Err(err) => eprintln!("  · {}: {err}", truncate(url, 90)),
+            }
+        }
+
+        let age = facts
+            .age
+            .clone()
+            .or(article_age)
+            .filter(|value| pdf::numeric_age(value).is_some());
+        let qualification = job
+            .qualification
+            .clone()
+            .filter(|value| pdf::valid_qualification(value))
+            .or_else(|| facts.qualification.clone().filter(|value| pdf::valid_qualification(value)))
+            .or(article_qual);
+        let pay = facts.pay.clone().or(article_pay);
+
+        let mut actions: Vec<String> = Vec::new();
+        if needs_details {
+            if let (Some(age_limit), Some(required)) = (&age, &qualification) {
+                details.push(db::DetailRow {
+                    job_source_link: job.source_link.clone(),
+                    age_limit: age_limit.clone(),
+                    required_qualifications: required.clone(),
+                    application_fees: None,
+                });
+                actions.push(format!("eligibility ({age_limit})"));
+            }
+        }
+        if needs_salary {
+            if let Some(pay) = &pay {
+                salaries.push((job.source_link.clone(), pay.clone()));
+                actions.push(format!("pay ({})", truncate(pay, 45)));
+            }
+        }
+        if !actions.is_empty() {
+            println!("  ✓ {}: {}", truncate(&job.title, 62), actions.join(", "));
+        }
+    }
+
+    println!(
+        "\n📊 scanned {scanned} articles · {} eligibility rows · {} pay fills",
+        details.len(),
+        salaries.len()
+    );
+    if dry_run {
+        println!("Dry run: nothing written.");
+        return 0;
+    }
+    if !details.is_empty() {
+        match db::insert_job_details(&details) {
+            Ok(written) => println!("Wrote {written} job_details rows."),
+            Err(err) => {
+                eprintln!("❌ job_details write failed: {err}");
+                return 1;
+            }
+        }
+    }
+    let mut failed = 0usize;
+    for (link, pay) in &salaries {
+        if let Err(err) = db::update_salary(link, pay) {
+            eprintln!("❌ {err}");
+            failed += 1;
+        }
+    }
+    if failed > 0 {
+        return 1;
+    }
+    println!("Wrote {} salary updates.", salaries.len());
+    0
+}
+
 /// FreeJobAlert article pages carry facts the listing table does not: `Job Location`, `Pay`
 /// and `Age Limit`. Fetching them for every row would triple a daily run, so only rows that
 /// are new (or still missing all three facts) are visited — one fetch fills every empty field.
@@ -233,7 +371,9 @@ fn enrich_locations(
             // Eligibility facts for `job_details`. Both required columns must be present or the
             // row cannot be written, so the pair is collected together.
             let age = parse::freejobalert_age_limit(&html);
-            let qualification = parse::freejobalert_qualification(&html);
+            // "As Per the Advertisement" and "Other" are placeholders, not requirements.
+            let qualification = parse::freejobalert_qualification(&html)
+                .filter(|value| pdf::valid_qualification(value));
             if let (Some(age_limit), Some(required_qualifications)) = (age, qualification) {
                 details.push(db::DetailRow {
                     job_source_link: job.source_link.clone(),

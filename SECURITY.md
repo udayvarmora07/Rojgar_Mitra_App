@@ -49,6 +49,13 @@ compromised or no longer needed.
   inline styles because React Native Web applies computed styles inline.
 - **HTML in scraped text**: decoded as text, never rendered as markup; there is no
   `dangerouslySetInnerHTML` anywhere in the app.
+- **Official notification PDFs**: only HTTP(S) notification links from the article are fetched,
+  under the scraper's robots and spacing rules and a 25 MB body cap. The bytes must start with
+  `%PDF-`; they are written to a unique temporary file, parsed by Poppler's
+  `pdftotext -layout` (no PDF JavaScript or embedded files are executed), and deleted. Only the
+  extracted age/pay/qualification strings are stored. Keep `poppler-utils` patched; the monthly
+  workflow installs the Ubuntu package. Scanned, silent or robots-disallowed PDFs are skipped
+  rather than guessed.
 
 ## Dependency advisories
 

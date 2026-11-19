@@ -20,6 +20,8 @@ serde_json = "1"
 robotxt = "0.7"
 # URL parsing/joining for relative hrefs.
 url = "2"
+# Age/pay/qualification extraction from official notification PDFs.
+regex = "1"
 
 [profile.release]
 opt-level = "z"

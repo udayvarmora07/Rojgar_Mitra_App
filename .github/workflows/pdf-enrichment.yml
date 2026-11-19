@@ -1,0 +1,62 @@
+name: PDF Enrichment
+
+# Official PDFs are the only place some notices state the qualification or age. This pass
+# visits live notices that still miss a fact, so it is monthly rather than daily. Manual runs
+# default to a dry run; the scheduled run writes.
+on:
+  schedule:
+    - cron: '15 3 1 * *' # 03:15 UTC on the 1st = 08:45 AM IST
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not write to the database)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pdf-enrichment
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    name: Backfill eligibility and pay from official PDFs
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: scraper-rs
+
+      - name: Install Poppler
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Unit tests
+        working-directory: scraper-rs
+        run: cargo test --locked
+
+      - name: Clippy
+        working-directory: scraper-rs
+        run: cargo clippy --locked -- -D warnings
+
+      - name: Backfill from PDFs
+        working-directory: scraper-rs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cargo build --release --locked
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" = "true" ]; then
+            ./target/release/rojgar-scraper --backfill-pdfs --dry-run
+          else
+            ./target/release/rojgar-scraper --backfill-pdfs --no-dry-run
+          fi

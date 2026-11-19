@@ -157,6 +157,76 @@ pub fn insert_new_jobs(jobs: &[Job], present: &HashSet<String>) -> Result<Insert
     Ok(InsertStats { inserted, already_present: present.len(), new_links })
 }
 
+/// A live notice the PDF pass may still be able to enrich.
+#[derive(Debug, Deserialize)]
+pub struct BackfillJob {
+    pub id: String,
+    pub title: String,
+    pub source_link: String,
+    pub salary: Option<String>,
+    pub qualification: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct DetailJobIdRow {
+    job_id: String,
+}
+
+/// Reads live jobs and the set that already has an eligibility row.
+///
+/// The monthly PDF pass only touches a job when one of the two facts is missing; a job whose
+/// article already supplied both is not downloaded again.
+pub fn live_jobs_for_backfill(today: &str) -> Result<(Vec<BackfillJob>, HashSet<String>), String> {
+    let (url, key) = credentials()?;
+    let agent = agent();
+    let jobs_url = format!(
+        "{url}/rest/v1/jobs?select=id,title,source_link,salary,qualification&deadline=gte.{today}&order=deadline.asc"
+    );
+    let mut response = agent
+        .get(&jobs_url)
+        .header("apikey", &key)
+        .header("Authorization", &format!("Bearer {key}"))
+        .call()
+        .map_err(|err| format!("could not read jobs: {err}"))?;
+    let jobs: Vec<BackfillJob> = response
+        .body_mut()
+        .read_json()
+        .map_err(|err| format!("could not parse jobs: {err}"))?;
+
+    let details_url = format!("{url}/rest/v1/job_details?select=job_id");
+    let mut response = agent
+        .get(&details_url)
+        .header("apikey", &key)
+        .header("Authorization", &format!("Bearer {key}"))
+        .call()
+        .map_err(|err| format!("could not read job_details: {err}"))?;
+    let rows: Vec<DetailJobIdRow> = response
+        .body_mut()
+        .read_json()
+        .map_err(|err| format!("could not parse job_details: {err}"))?;
+    Ok((jobs, rows.into_iter().map(|row| row.job_id).collect()))
+}
+
+/// Fills a missing salary without overwriting a value the article already supplied.
+pub fn update_salary(source_link: &str, salary: &str) -> Result<(), String> {
+    let (url, key) = credentials()?;
+    let agent = agent();
+    let patch = format!(
+        "{url}/rest/v1/jobs?source_link=eq.{}&salary=is.null",
+        encode_query(source_link)
+    );
+    let body = serde_json::json!({ "salary": salary }).to_string();
+    agent
+        .patch(&patch)
+        .header("apikey", &key)
+        .header("Authorization", &format!("Bearer {key}"))
+        .header("Content-Type", "application/json")
+        .header("Prefer", "return=minimal")
+        .send(body.as_bytes())
+        .map(|_| ())
+        .map_err(|err| format!("salary update failed for {source_link}: {err}"))
+}
+
 /// One eligibility record per job, written to `public.job_details` after the job rows exist.
 ///
 /// `age_limit` and `required_qualifications` are NOT NULL in the schema, so a record is only

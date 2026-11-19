@@ -9,7 +9,64 @@ component record for the current visual system.
 
 ---
 
-## 0. Latest: production hardening and closed-notice correctness (2026-11-19)
+## 0. Latest: official PDF enrichment and real coverage (2026-11-19)
+
+`job_details` covered 40 of 87 live notices (46%) and pay 69 (79%). The article summaries were
+exhausted; the missing qualification or age was in the linked official ads. This pass adds a
+Rust PDF pass, extracts with Poppler's `pdftotext -layout`, and backfills the hosted project.
+
+**What changed**
+- `scraper-rs/src/pdf.rs` ranks notification links (root-relative GPSC `Important Links` are now
+  resolved), downloads with a 25 MB cap under the existing robots/spacing rules, extracts text
+  with Poppler, and parses both GPSC's `[3]` section and generic age/pay/qualification statements.
+  Placeholders such as `As Per the Advertisement` are rejected.
+- `--backfill-pdfs` reads live notices that still miss a fact, tries up to two linked PDFs, and
+  writes only when a numeric age and a valid qualification are both present. `db.rs` gained
+  `live_jobs_for_backfill` and a salary PATCH that only fills a null.
+- `parse.rs`: salary labels now include `PayScale`, `Stipend`, `Monthly Stipend`, `Remuneration`,
+  `Honorarium` and `Fellowship`; the age parser falls back to an intro `AGE LIMIT 25 - 58 Years`;
+  a placeholder qualification is no longer stored.
+- `.github/workflows/pdf-enrichment.yml` runs monthly and on manual dispatch (dry-run by default
+  manually) and installs `poppler-utils`. `ci-cd.yml` gained a Rust test/clippy job.
+- The hosted project was backfilled from a validated set after backing up every affected row:
+  14 salary fills and 15 eligibility rows.
+
+**Measured result**
+
+| Fact | Before | After |
+|---|---:|---:|
+| Eligibility rows | 40/87 (46%) | **55/87 (63%)** |
+| Numeric age + usable qualification | 35/87 (40%) | **50/87 (57%)** |
+| Pay | 69/87 (79%) | **83/87 (95%)** |
+
+The 15 rows are six GPSC ads (age, pay and qualification), Surveyor, both Food Safety Officer
+notices, Deputy Registrar, Resident Medical Doctor, Senior Trainer Consultant, Warden, Young
+Professional-I and the Sardar Patel fellowship. The 14 pay fills are those plus Apprentice,
+Gujarat Subordinate Service and the Graduate/Technician apprentices.
+
+**Verified**
+- Rust: **47 tests**, `cargo clippy --all-targets -- -D warnings` clean.
+- `--backfill-pdfs --dry-run` against the hosted project completed; it scanned the 32 remaining
+  articles, correctly skipped robots-disallowed/scanned PDFs, and wrote nothing (the set was
+  already filled). The durable command is the monthly workflow, not a one-off script.
+- Hosted rows re-read after the write: every one of the 14 salaries and 15 detail rows matches
+  the validated set; live counts are 55 and 83.
+- Live app: the GPSC Executive Engineer shows `Rs.67700-208700/-`, `Maximum 35 years`, and the
+  full civil-engineering text behind `Show full text`; Food Safety Officer shows `18 to 37 years`
+  and the Food Technology qualification. Axe: **0 violations** on both detail screens.
+- App gates unchanged: typecheck, lint, Jest 25/197.
+
+**Still open**
+- The sticky CTA still says `Apply Now - Official Website` but opens the FreeJobAlert article, not
+  the official portal. Storing the official notification URL per notice and retitling the action
+  is the next trust fix.
+- The 32 remaining notices need OCR (scanned PDFs) or a Gujarati-aware extractor; project posts
+  with no age limit are correctly left empty. The one-off Python pass downloaded TSU PDFs that
+  their `robots.txt` disallows; the durable Rust pass honours robots and will not repeat that.
+
+---
+
+## 0.1 Latest: production hardening and closed-notice correctness (2026-11-19)
 
 This pass closed the gap between "the app works" and "the web deployment and CI are guarded".
 
@@ -45,7 +102,7 @@ the UI (`gu-IN`, `hi-IN`). Evidence: `design/references/app-home-gu-qa.png`,
 ### The `NODE_ENV` trap, again
 
 This shell exports `NODE_ENV=production` and npm omits dev dependencies, so `npm audit fix`
-pruned Jest, ESLint and `@types/jest`. Executed exactly as recorded in §0.8:
+pruned Jest, ESLint and `@types/jest`. Executed exactly as recorded in §0.9:
 `NODE_ENV=development npm install --include=dev`. The lockfile kept the audit fixes and all
 gates returned to green. Run dependency commands with an explicit `NODE_ENV` from now on.
 
@@ -77,7 +134,7 @@ gates returned to green. Run dependency commands with an explicit `NODE_ENV` fro
 
 ---
 
-## 0.1 Long official requirements no longer wall the page (2026-11-19)
+## 0.2 Long official requirements no longer wall the page (2026-11-19)
 
 Some scraped eligibility paragraphs run to several hundred characters — the Rajkot Fire
 Officer notice needs a five-line block just to reach the next fact. `Fact` now clamps a value
@@ -106,7 +163,7 @@ in the reader's language. Short facts (location, posts, dates) are untouched.
 
 ---
 
-## 0.2 A notice stays readable offline (2026-11-19)
+## 0.3 A notice stays readable offline (2026-11-19)
 
 The list was cached; the notice was not. A reader who found a post at home and opened it at
 the employment office with no signal got "Could not load jobs" and lost the facts they had
@@ -155,7 +212,7 @@ already seen. This pass makes an opened notice a local record.
 
 ---
 
-## 0.3 Deadline reminders: never miss the last date (2026-11-19)
+## 0.4 Deadline reminders: never miss the last date (2026-11-19)
 
 The most expensive failure in this domain is not a bad screen; it is a candidate who finds the
 notice but not the deadline. This pass adds one local reminder per notice, a screen that lists
@@ -221,7 +278,7 @@ them, and notification taps that open the screen they are about.
 
 ---
 
-## 0.4 Trust, provenance and crash safety (2026-11-19)
+## 0.5 Trust, provenance and crash safety (2026-11-19)
 
 This pass hardened the product rather than adding a screen: it can no longer white-screen on a
 render error, a reader can send a notice on, the list says when it was last checked, every
@@ -288,7 +345,7 @@ a reader even before the next scrape.
 
 ---
 
-## 0.5 Native E2E, real data, and the application gap (2026-11-19)
+## 0.6 Native E2E, real data, and the application gap (2026-11-19)
 
 This pass did three things the project had never done: it ran the app on a **real Android
 emulator on this machine**, it **filled the two data columns that were always empty**, and it
@@ -540,8 +597,8 @@ advertised)`.
 ### Resume prompt for a fresh session
 
 > Read this file (§0 is the latest), then `PRODUCT.md`, `DESIGN.md`, `SECURITY.md` and
-> `AGENTS.md`. All gates are green (typecheck, lint, Jest 25 suites / 197 tests, Rust 36,
-> expo-doctor 18/18, web E2E incl. reminders, four-tab axe, and the CI run recorded in §0.5
+> `AGENTS.md`. All gates are green (typecheck, lint, Jest 25 suites / 197 tests, Rust 47,
+> expo-doctor 18/18, web E2E incl. reminders, four-tab axe, and the CI run recorded in §0.6
 > with all five jobs). Run:
 >
 > ```bash
@@ -549,6 +606,7 @@ advertised)`.
 > export SUPABASE_URL="$(grep '^EXPO_PUBLIC_SUPABASE_URL=' .env | cut -d= -f2)"
 > export SUPABASE_ANON_KEY="$(grep '^EXPO_PUBLIC_SUPABASE_ANON_KEY=' .env | cut -d= -f2)"
 > npm run typecheck && npm run lint && NODE_ENV=test npx jest
+> (cd scraper-rs && cargo test --locked && cargo clippy --locked -- -D warnings)
 > npx expo-doctor
 > bash scripts/e2e-web.sh && bash scripts/a11y-audit.sh
 > ```
@@ -560,11 +618,13 @@ advertised)`.
 > `android/app/build` and `~/.cache/google-chrome/*/Cache` first)**, install it with `adb
 > install -r`, and drive it with `~/.maestro/bin/maestro test e2e/android/smoke.yaml`.
 >
-> The highest-value remaining product work is a "jobs I qualify for" view; the highest-value
-> data work is coverage: 46% of jobs have eligibility and 79% have pay, and the rest needs the
-> official PDF parser. `documents_required` has 227 rows across 38 jobs for the same reason.
-> Touch UI only through `design/tokens.json` and
-> `components/ui/`.
+> The highest-value remaining product work is a "jobs I qualify for" view. Coverage is now
+> **55/87 eligibility rows (63%; 50 with a numeric age and usable qualification)** and
+> **83/87 pay (95%)**; the remaining notices need OCR for scanned PDFs or a Gujarati-aware
+> extractor. `documents_required` has 227 rows across 38 jobs for the same reason. Run the PDF
+> pass with `cd scraper-rs && cargo run --release -- --backfill-pdfs --dry-run` (Poppler's
+> `pdftotext` required; the monthly workflow writes). Touch UI only through
+> `design/tokens.json` and `components/ui/`.
 
 ### What this pass changed, in one line each
 
@@ -580,7 +640,7 @@ advertised)`.
 
 ---
 
-## 0.6 Complete UI redesign (2026-11-18)
+## 0.7 Complete UI redesign (2026-11-18)
 
 The whole frontend was replaced, not polished. The previous system was consistent but read as
 a generic Tailwind card stack; the new one has a visual point of view grounded in the
@@ -665,9 +725,9 @@ place. Visual evidence is in `design/references/`:
   written.
 - **The generated AI question can be long** (e.g. a multi-part matching question fills the
   screen). The UI scrolls and keeps the footer pinned, but the content policy for prompt
-  length lives in `supabase/functions/generate-test`, not the UI. **Fixed in §0.2.**
+  length lives in `supabase/functions/generate-test`, not the UI. **Fixed in §0.9.**
 - **Android hardware back / predictive back** was not exercised. The app still uses the
-  existing Expo Router stack; no navigation behavior was changed. **Audited in §0.2**; the
+  existing Expo Router stack; no navigation behavior was changed. **Audited in §0.9**; the
   predictive-back flag remains off until a device can verify it.
 
 ### Resume prompt for a fresh session
@@ -681,7 +741,7 @@ place. Visual evidence is in `design/references/`:
 
 ---
 
-## 0.7 Category shortcuts, education filtering, location and study material (2026-11-18)
+## 0.8 Category shortcuts, education filtering, location and study material (2026-11-18)
 
 This pass closed the three PRD gaps that were still open after the redesign: home category
 shortcuts + education-level filtering (4.1/5.1), job location (5.3), and the learning-resource
@@ -778,7 +838,7 @@ re-run and record them.
 
 ---
 
-## 0.8 List apply, document reminders, AI length policy, native audit (2026-11-18)
+## 0.9 List apply, document reminders, AI length policy, native audit (2026-11-18)
 
 This pass closed four of the five items left open after the redesign and the data/localization
 pass, and audited the fifth (the native pass), which still needs a device.

@@ -132,6 +132,26 @@ jobs:
 
       - run: python -m unittest discover -s scraper -p 'test_*.py'
 
+  rust-scraper:
+    name: Rust scraper tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: scraper-rs
+
+      - name: Unit tests
+        working-directory: scraper-rs
+        run: cargo test --locked
+
+      - name: Clippy
+        working-directory: scraper-rs
+        run: cargo clippy --locked -- -D warnings
+
   build-web:
     name: Build web
     runs-on: ubuntu-latest

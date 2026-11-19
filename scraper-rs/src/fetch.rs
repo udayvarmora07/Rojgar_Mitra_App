@@ -9,6 +9,8 @@ pub const USER_AGENT: &str = "RojgarMitraBot/1.0 (Gujarat government job aggrega
 const REQUEST_DELAY: Duration = Duration::from_secs(2);
 const MAX_ATTEMPTS: u32 = 3;
 const TIMEOUT: Duration = Duration::from_secs(30);
+/// Notification PDFs are usually under 5 MB; this only stops a wrong URL from filling memory.
+const MAX_PDF_BYTES: u64 = 25 * 1024 * 1024;
 
 pub struct Client {
     agent: ureq::Agent,
@@ -93,6 +95,43 @@ impl Client {
                     Ok(body) => return Some(body),
                     Err(err) => eprintln!("  ✗ Could not read {url}: {err}"),
                 },
+                Err(ureq::Error::StatusCode(code)) if (500..600).contains(&code) || code == 429 => {
+                    let backoff = Duration::from_secs(2u64.pow(attempt));
+                    eprintln!("  ! {url}: HTTP {code}, retrying in {}s", backoff.as_secs());
+                    sleep(backoff);
+                }
+                Err(err) => {
+                    eprintln!("  ✗ Could not fetch {url}: {err}");
+                    return None;
+                }
+            }
+        }
+        eprintln!("  ✗ Gave up on {url} after {MAX_ATTEMPTS} attempts");
+        None
+    }
+
+    /// Binary sibling of [`Client::get`] for notification PDFs. Same robots check, throttle
+    /// and retry policy, with a hard body cap so a wrong link cannot exhaust memory.
+    pub fn get_bytes(&mut self, url: &str) -> Option<Vec<u8>> {
+        let origin = origin_of(url);
+        if origin.is_empty() {
+            eprintln!("  ✗ Unparseable URL {url}");
+            return None;
+        }
+        if !self.robots_for(&origin).is_allowed(&path_of(url)) {
+            println!("  ✗ robots.txt disallows {url} - skipped");
+            return None;
+        }
+
+        for attempt in 1..=MAX_ATTEMPTS {
+            self.wait_turn();
+            match self.agent.get(url).call() {
+                Ok(mut response) => {
+                    match response.body_mut().with_config().limit(MAX_PDF_BYTES).read_to_vec() {
+                        Ok(bytes) => return Some(bytes),
+                        Err(err) => eprintln!("  ✗ Could not read {url}: {err}"),
+                    }
+                }
                 Err(ureq::Error::StatusCode(code)) if (500..600).contains(&code) || code == 429 => {
                     let backoff = Duration::from_secs(2u64.pow(attempt));
                     eprintln!("  ! {url}: HTTP {code}, retrying in {}s", backoff.as_secs());
